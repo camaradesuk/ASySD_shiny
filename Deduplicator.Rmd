@@ -13,12 +13,45 @@ library(dplyr)
 library(RecordLinkage) #contains compare.dedup function
 ```
 
-```{r}
+```{r CSV input}
 #Insert new data as CSV 
 newdat <- read.csv("NPDedupDataset.csv", header=TRUE)
 ```
 
-```{r}
+```{r XML input}
+#Insert new data direct from Endnote (XML)
+library(XML)
+library(RCurl)
+
+xmldat<-xmlParse("NeuropathicPainDataset.xml")
+x <-  getNodeSet(xmldat,'//record')
+
+xpath2 <-function(x, ...){
+    y <- xpathSApply(x, ...)
+    y <- gsub(",", "", y)  # remove commas if using comma separator
+    ifelse(length(y) == 0, NA,  paste(y, collapse=", "))
+}
+    
+NPData <- data.frame(
+Author = sapply(x, xpath2, ".//contributors/authors", xmlValue),
+Year   = sapply(x, xpath2, ".//dates/year", xmlValue),
+Journal = sapply(x, xpath2, ".//periodical/full-title", xmlValue),
+DOI = sapply(x, xpath2, ".//electronic-resource-num", xmlValue),
+Title = sapply(x, xpath2, ".//titles/title", xmlValue),
+Pages = sapply(x, xpath2, ".//pages", xmlValue),
+Volume = sapply(x, xpath2, ".//volume", xmlValue),
+Number = sapply(x, xpath2, ".//number", xmlValue),
+Abstract = sapply(x, xpath2, ".//abstract", xmlValue),
+RecordID = sapply(x, xpath2, ".//rec-number", xmlValue),
+SecondaryTitle = sapply(x, xpath2, ".//titles/secondary-title", xmlValue)
+ )
+
+newdat <- NPData %>% 
+ mutate(Journal=ifelse(is.na(Journal), paste(SecondaryTitle), paste(Journal)))
+
+```
+
+```{r Format Data}
 newdatformatted <- newdat  %>%
   select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, RecordID) 
 
@@ -86,6 +119,7 @@ linkedpairs3 <- dfpairs3
 ```
 
 ```{r}
+#Run compare.dedup function and block by Author&Year OR Title&Year
 newpairs4 = compare.dedup(newdatformatted, blockfld = list(c(1,3), c(3,2)), strcmp = TRUE, exclude= "RecordID")
 
 dfpairs4 <- as.data.frame(newpairs4$pairs)
@@ -132,14 +166,8 @@ SeePairs <- SeePairs %>%
   mutate(Pages = ifelse(is.na(Pages1) & is.na(Pages2), 1, Pages)) %>%
   mutate(Volume = ifelse(is.na(Volume1) & is.na(Volume2), 1, Volume)) %>%
   mutate(Number = ifelse(is.na(Number1) & is.na(Number2), 1, Number)) %>%
-  mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) %>%
-  mutate(Abstract = ifelse(Abstract1=="" & Abstract2=="", 0, Abstract)) %>%
-  mutate(Pages = ifelse(Pages1=="" & Pages2=="", 1, Pages)) %>% 
-  mutate(Volume = ifelse(Volume1=="" & Volume2=="", 1, Volume)) %>%
-  mutate(Number = ifelse(Number1=="" & Number2=="", 1, Number)) %>%
-  mutate(DOI = ifelse(DOI1=="" & DOI2=="", 0, DOI))
-
-
+  mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) 
+ 
 
 SeePairs <- SeePairs %>%
   filter((Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
