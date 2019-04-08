@@ -170,28 +170,32 @@ SeePairs <- SeePairs %>%
  
 
 SeePairs <- SeePairs %>%
-  filter((Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+(Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
            (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
-           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal >0.6) | 
+           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) | 
+           
            (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.8) |
            (Volume>0.8 & Pages>0.8 & Title>0.90 & Abstract>0.9 & Author>0.8) |
            (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.9 & Author>0.8) |
+           
            (DOI>0.95 & Author>0.75 & Title>0.9 & Volume >0.8) |
+           
            (Title>0.80 & Abstract>0.90 & Volume>0.85 & Journal>0.65 & Author>0.9) | 
            (Title>0.90 & Abstract>0.80 & Volume>0.85 & Journal>0.65 & Author>0.9)|
+           
            (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9 & Journal>0.75) |
            (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.80 & Author>0.9 & Journal>0.75) | 
-           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9  & Journal >0.75) |
+           (Volume>0.8 & Number>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9  & Journal>0.75) |
+           
            (Title>0.9 & Author>0.9 & Abstract>0.9 & Journal >0.7)|
-           (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
-           (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
-           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal >0.6) | 
-           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.8) | 
+             
            (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) | 
            (Number>0.9 & Volume>0.9 & Title>0.90 & Author>0.90 & Journal>0.6) | 
            (Pages>0.9 & Volume>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) |
+             
            (Pages>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9) |
-           (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
+           (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
+           (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
 
 SeePairs <- unique(SeePairs) 
   
@@ -226,7 +230,6 @@ SeePairsCheckSample <- SeePairs[sample(500),]
 
 #write.csv(SeePairsCheckSample, file="SeePairsCheckSample500.csv")
 ```
-
 
 ```{r}
 dedupdat <- newdat
