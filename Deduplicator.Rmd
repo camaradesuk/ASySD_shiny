@@ -32,7 +32,7 @@ xpath2 <-function(x, ...){
     ifelse(length(y) == 0, NA,  paste(y, collapse=", "))
 }
     
-NPData <- data.frame(
+newdat <- data.frame(
 Author = sapply(x, xpath2, ".//contributors/authors", xmlValue),
 Year   = sapply(x, xpath2, ".//dates/year", xmlValue),
 Journal = sapply(x, xpath2, ".//periodical/full-title", xmlValue),
@@ -46,7 +46,7 @@ RecordID = sapply(x, xpath2, ".//rec-number", xmlValue),
 SecondaryTitle = sapply(x, xpath2, ".//titles/secondary-title", xmlValue)
  )
 
-newdat <- NPData %>% 
+newdat <- newdat %>% 
  mutate(Journal=ifelse(is.na(Journal), paste(SecondaryTitle), paste(Journal)))
 
 ```
@@ -169,8 +169,9 @@ SeePairs <- SeePairs %>%
   mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) 
  
 
-SeePairs <- SeePairs %>%
-(Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+SeePairsFiltered <- SeePairs %>%
+  filter(
+           (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
            (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
            (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) | 
            
@@ -197,7 +198,8 @@ SeePairs <- SeePairs %>%
            (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
            (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
 
-SeePairs <- unique(SeePairs) 
+SeePairs <- unique(SeePairs)
+SeePairsFiltered <- unique(SeePairsFiltered) 
   
 ```
 
