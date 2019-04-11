@@ -131,10 +131,21 @@ server <- function(input, output) {
 
     newdatformatted<-newdatformatted %>%
       filter(!is.na(RecordID))
-  
-return(newdatformatted)
-  
+    
+    newdatformatted<- newdatformatted %>%
+      mutate(Author = ifelse(Author=="NA", NA, paste(Author))) %>%
+      mutate(Year = ifelse(Year=="NA", NA, paste(Year))) %>%
+      mutate(Title = ifelse(Title=="NA", NA, paste(Title))) %>%
+      mutate(Number = ifelse(Number=="NA", NA, paste(Number))) %>%
+      mutate(Volume = ifelse(Volume=="NA", NA, paste(Volume))) %>%
+      mutate(Pages = ifelse(Pages=="NA", NA, paste(Pages))) %>%
+      mutate(Abstract = ifelse(Abstract=="NA", NA, paste(Abstract))) %>%
+      mutate(DOI = ifelse(DOI=="NA", NA, paste(DOI))) %>%
+      mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal)))
+    
+    return(newdatformatted)
 })
+  
 
 output$contents <- renderDT(
   XMLData(), 
@@ -152,12 +163,12 @@ dedupData <- eventReactive(input$dedupbutton,{
   newpairs = compare.dedup(XMLDataFormatted(), blockfld = list(c(2,8), c(1,2), c(2,5), c(2,6)), strcmp = TRUE, exclude= "RecordID")
   #Create df of pairs
   linkedpairs <- as.data.frame(newpairs$pairs)
-
+  print(paste0("linkedpairs=", nrow(linkedpairs)))
+  
   #Run compare.dedup function and block by Author&Year&Pages OR Year&Pages&DOI 
   newpairs2 = compare.dedup(XMLDataFormatted(), blockfld = list(c(1,3,8), c(3,8,6)), strcmp = TRUE, exclude= c("RecordID"))
   #Create df of pairs
   linkedpairs2 <- as.data.frame(newpairs2$pairs)
-
 
   #Run compare.dedup function and block by Year&Pages&Volume OR Year&Issue&Volume
   newpairs3 = compare.dedup(XMLDataFormatted(), blockfld = list(c(3,8,9), c(3,7,9)), strcmp = TRUE, exclude= "RecordID")
@@ -165,16 +176,20 @@ dedupData <- eventReactive(input$dedupbutton,{
   linkedpairs3 <- as.data.frame(newpairs3$pairs)
 
   #Run compare.dedup function and block by Author&Year OR Title&Year
-  newpairs4 = compare.dedup(XMLDataFormatted(), blockfld = list(c(1,3), c(3,2)), strcmp = TRUE, exclude= "RecordID")
+  newpairs4 = compare.dedup(XMLDataFormatted(), blockfld = list(c(1,3), c(3,2), c(2,9), c(2,4)), strcmp = TRUE, exclude= "RecordID")
   #Create df of pairs
   linkedpairs4 <- as.data.frame(newpairs4$pairs)
+  print(paste0("linkedpairs4=", nrow(linkedpairs4)))
   
   SeePairs <- rbind(linkedpairs, linkedpairs2, linkedpairs3, linkedpairs4)
-
+  print(nrow(SeePairs))
+  
+  SeePairs <- unique(SeePairs)
+  
   SeePairs <- SeePairs  %>%
     mutate(Author1 = XMLData()$Author[id1]) %>%
-    mutate(Author2 = XMLData()$Author[id2])
-
+    mutate(Author2 = XMLData()$Author[id2]) 
+  
   SeePairs <- SeePairs %>%
     mutate(Title1 =XMLData()$Title[id1]) %>%
     mutate(Title2 = XMLData()$Title[id2]) %>%
@@ -182,7 +197,7 @@ dedupData <- eventReactive(input$dedupbutton,{
     mutate(Abstract2 = XMLData()$Abstract[id2]) %>%
     mutate(DOI1 =XMLData()$DOI[id1]) %>%
     mutate(DOI2 =XMLData()$DOI[id2])
-
+  
   SeePairs <- SeePairs  %>%
     mutate(Year1= XMLData()$Year[id1]) %>%
     mutate(Year2= XMLData()$Year[id2]) %>%
@@ -191,123 +206,127 @@ dedupData <- eventReactive(input$dedupbutton,{
     mutate(Pages1 = XMLData()$Pages[id1]) %>%
     mutate(Pages2 = XMLData()$Pages[id2]) %>%
     mutate(Volume1 = XMLData()$Volume[id1]) %>%
-    mutate(Volume2 = XMLData()$Volume[id2])
-
+    mutate(Volume2 = XMLData()$Volume[id2]) 
+  
   SeePairs <- SeePairs  %>%
     mutate(Journal1 = XMLData()$Journal[id1]) %>%
     mutate(Journal2 = XMLData()$Journal[id2]) %>%
     mutate(RecordID1= XMLData()$RecordID[id1]) %>%
-    mutate(RecordID2 = XMLData()$RecordID[id2])
-
+    mutate(RecordID2 = XMLData()$RecordID[id2]) 
+  
   SeePairs <- SeePairs %>%
     select(id1, id2, Author1, Author2, Author, Title1, Title2, Title, Abstract1, Abstract2, Abstract, Year1, Year2, Year, Number1, Number2, Number, Pages1, Pages2, Pages, Volume1, Volume2, Volume, Journal1, Journal2, Journal, DOI1, DOI2, DOI, RecordID1, RecordID2)
-
+  
   SeePairs <- SeePairs %>%
     mutate(Abstract = ifelse(is.na(Abstract1) & is.na(Abstract2), 0, Abstract)) %>%
     mutate(Pages = ifelse(is.na(Pages1) & is.na(Pages2), 1, Pages)) %>%
     mutate(Volume = ifelse(is.na(Volume1) & is.na(Volume2), 1, Volume)) %>%
     mutate(Number = ifelse(is.na(Number1) & is.na(Number2), 1, Number)) %>%
-    mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) %>%
-    mutate(Abstract = ifelse(Abstract1=="" & Abstract2=="", 0, Abstract)) %>%
-    mutate(Pages = ifelse(Pages1=="" & Pages2=="", 1, Pages)) %>%
-    mutate(Volume = ifelse(Volume1=="" & Volume2=="", 1, Volume)) %>%
-    mutate(Number = ifelse(Number1=="" & Number2=="", 1, Number)) %>%
-    mutate(DOI = ifelse(DOI1=="" & DOI2=="", 0, DOI))
-
-
+    mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) 
+  
+  #editcode 280319 - add in last line (mssing number & pages combo)
   SeePairsFiltered <- SeePairs %>%
-    filter(
-      (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) |
-        (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) |
-        (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) |
-
+    filter(    
+        (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+        (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+        (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) | 
+        
         (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.8) |
         (Volume>0.8 & Pages>0.8 & Title>0.90 & Abstract>0.9 & Author>0.8) |
         (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.9 & Author>0.8) |
-
+        
         (DOI>0.95 & Author>0.75 & Title>0.9 & Volume >0.8) |
-
-        (Title>0.80 & Abstract>0.90 & Volume>0.85 & Journal>0.65 & Author>0.9) |
+        
+        (Title>0.80 & Abstract>0.90 & Volume>0.85 & Journal>0.65 & Author>0.9) | 
         (Title>0.90 & Abstract>0.80 & Volume>0.85 & Journal>0.65 & Author>0.9)|
-
+        
         (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9 & Journal>0.75) |
-        (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.80 & Author>0.9 & Journal>0.75) |
+        (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.80 & Author>0.9 & Journal>0.75) | 
         (Volume>0.8 & Number>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9  & Journal>0.75) |
-
+        
         (Title>0.9 & Author>0.9 & Abstract>0.9 & Journal >0.7)|
-
-        (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) |
-        (Number>0.9 & Volume>0.9 & Title>0.90 & Author>0.90 & Journal>0.6) |
+        
+        (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) | 
+        (Number>0.9 & Volume>0.9 & Title>0.90 & Author>0.90 & Journal>0.6) | 
         (Pages>0.9 & Volume>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) |
-
+        
         (Pages>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9) |
         (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
         (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
-
-
-  SeePairs <- unique(SeePairs)
-
+  
   SeePairsFiltered <- unique(SeePairsFiltered)
-
-  #Find papers with different years
+  print(nrow(SeePairsFiltered))
+  
   SeePairsFiltered$Year1 <- as.numeric(as.character(SeePairsFiltered$Year1))
   SeePairsFiltered$Year2 <- as.numeric(as.character(SeePairsFiltered$Year2))
-
+  
   YearsDiff <- SeePairsFiltered[which(SeePairsFiltered$Year1 != SeePairsFiltered$Year2),]
   YearsNotVeryDiff1 <- YearsDiff[which(YearsDiff$Year1 == YearsDiff$Year2+1 ),]
   YearsNotVeryDiff2 <- YearsDiff[which(YearsDiff$Year1 == YearsDiff$Year2-1 ),]
-
+  
   YearsNotVeryDiff <- rbind(YearsNotVeryDiff1, YearsNotVeryDiff2)
   YearsNotVeryDiff <- unique(YearsNotVeryDiff)
-
+  
   YearsVeryDiff <- YearsDiff[which(!rownames(YearsDiff) %in% rownames(YearsNotVeryDiff)),]
-
-  ManualDedup <- YearsVeryDiff
-
+  
+  ManualDedup <- YearsVeryDiff 
+  
   SeePairsFiltered <- SeePairsFiltered[which(!rownames(SeePairsFiltered) %in% rownames(YearsVeryDiff)),]
-
+  
   SeePairsFiltered <- unique(SeePairsFiltered)
-
+  
   SeePairsFiltered$RecordID1 <- as.character(SeePairsFiltered$RecordID1)
   SeePairsFiltered$RecordID2 <- as.character(SeePairsFiltered$RecordID2)
-
-  set.seed(123)
-  SeePairsFilteredCheckSample <- SeePairsFiltered[sample(500),]
-
+  
+  #dedup - remove 1
   dedupdat <- XMLData()
-  dedupdat$RecordID <- as.character(dedupdat$RecordID)
-
   SeePairsToDedup <- SeePairsFiltered
-
+  
   #Keep latest year
   linkedpairskeepyear1 <- SeePairsToDedup[which(as.numeric(SeePairsToDedup$Year1) > as.numeric(SeePairsToDedup$Year2)),]
   removerefs2 <- unique(linkedpairskeepyear1$RecordID2)
-
+  print(removerefs2)
+  
   SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeepyear1)),]
   dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs2),]
   
   linkedpairskeepyear2 <- SeePairsToDedup[which(as.numeric(SeePairsToDedup$Year2) > as.numeric(SeePairsToDedup$Year1)),]
   removerefs3 <- unique(linkedpairskeepyear2$RecordID1)
   removerefs3unique <- removerefs3[!removerefs3 %in% removerefs2]
-
+  
   SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeepyear2)),]
   dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs3),]
-
+  
+  linkedpairskeep1 <- SeePairsToDedup[which(is.na(SeePairsToDedup$Abstract2) & !is.na(SeePairsToDedup$Abstract1)),]
+  removerefs1 <- unique(linkedpairskeep1$RecordID2)
+  
+  SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeep1)),]
+  dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs1),]
+  
   #Keep 2 for all other references
-  removedalreadyID <- c(removerefs2, removerefs3)
+  removedalreadyID <- c(removerefs2, removerefs3, removerefs1)
   removedalreadyID <- unique(removedalreadyID)
-  removedalready <- c(rownames(linkedpairskeepyear2), rownames(linkedpairskeepyear1))
-
+  removedalready <- c(rownames(linkedpairskeepyear2), rownames(linkedpairskeepyear1), rownames(linkedpairskeep1))
+  
   linkedpairskeep2 <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% removedalready),]
   removerefs4 <- unique(linkedpairskeep2$RecordID1)
-  SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeep2)),]
-  dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs4),]
-  return(dedupdat)
   
+  #Remove from pairs left to dedup
+  SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeep2)),]
+  print(SeePairsToDedup)
+  dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs4),]
+  
+  checkremovedalreadyID <- c(removerefs1, removerefs2, removerefs3, removerefs4)
+  checkremovedalreadyID <-unique(checkremovedalreadyID)
+  
+  dedupdat<-unique(dedupdat)
+  print(nrow(dedupdat))
+  return(unique(dedupdat))
 })
 
+# Datatable of deduplicated data ----
+
  output$dedup <- renderDT(
-    
     DT::datatable(dedupData(), 
       options = list(pageLength = 10))
     )
@@ -318,7 +337,8 @@ dedupData <- eventReactive(input$dedupbutton,{
       paste("dedupdata", ".csv", sep = "")
     },
     content = function(file) {
-      write.csv(dedupData(), file, row.names = FALSE)
+      write.csv(dedupData(), file, row.names = TRUE)
+      print(nrow(dedupData()))
     })
 }
 
