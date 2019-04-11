@@ -15,7 +15,7 @@ library(RecordLinkage) #contains compare.dedup function
 
 ```{r CSV input}
 #Insert new data as CSV 
-newdat <- read.csv("NPDedupDataset.csv", header=TRUE)
+#newdat <- read.csv("data.csv", header=TRUE)
 ```
 
 ```{r XML input}
@@ -23,7 +23,7 @@ newdat <- read.csv("NPDedupDataset.csv", header=TRUE)
 library(XML)
 library(RCurl)
 
-xmldat<-xmlParse("NeuropathicPainDataset.xml")
+xmldat<-xmlParse("data.xml")
 x <-  getNodeSet(xmldat,'//record')
 
 xpath2 <-function(x, ...){
@@ -52,7 +52,7 @@ newdat <- newdat %>%
 ```
 
 ```{r Format Data}
-newdatformatted <- newdat  %>%
+newdatformatted<- newdat %>%
   select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, RecordID) 
 
 newdatformatted$Author <- as.character(newdatformatted$Author)
@@ -68,7 +68,7 @@ newdatformatted <- as.data.frame(sapply(newdatformatted, toupper))
 ##Get rid of punctuation and DOI Differences
 toRemove <- c("HTTP://DX.DOI.ORG/", "DOI:", "DOI", "DOI: ")
 for (tR in toRemove) {
-  newdat$DOI <- gsub(tR, "", newdat$DOI)
+  newdatformatted$DOI <- gsub(tR, "", newdatformatted$DOI)
 }
 newdatformatted["Title"] <- as.data.frame(sapply(newdatformatted["Title"], function(x) gsub("[[:punct:]]", "", x)))
 newdatformatted["Year"] <- as.data.frame(sapply(newdatformatted["Year"], function(x) gsub("[[:punct:]]", "", x)))
@@ -81,15 +81,15 @@ newdatformatted<-newdatformatted %>%
 
 ```{r NA conversion}
 newdatformatted<- newdatformatted %>%
-  mutate(ifelse(Author=="NA", NA, Author)) %>%
-  mutate(ifelse(Year=="NA", NA, Year)) %>%
-  mutate(ifelse(Title=="NA", NA, Title)) %>%
-  mutate(ifelse(Number=="NA", NA, Number)) %>%
-  mutate(ifelse(Volume=="NA", NA, Volume)) %>%
-  mutate(ifelse(Pages=="NA", NA, Pages)) %>%
-  mutate(ifelse(Abstract=="NA", NA, Abstract)) %>%
-  mutate(ifelse(DOI=="NA", NA, DOI)) %>%
-  mutate(ifelse(Journal=="NA", NA, Journal))
+  mutate(Author = ifelse(Author=="NA", NA, paste(Author))) %>%
+  mutate(Year = ifelse(Year=="NA", NA, paste(Year))) %>%
+  mutate(Title = ifelse(Title=="NA", NA, paste(Title))) %>%
+  mutate(Number = ifelse(Number=="NA", NA, paste(Number))) %>%
+  mutate(Volume = ifelse(Volume=="NA", NA, paste(Volume))) %>%
+  mutate(Pages = ifelse(Pages=="NA", NA, paste(Pages))) %>%
+  mutate(Abstract = ifelse(Abstract=="NA", NA, paste(Abstract))) %>%
+  mutate(DOI = ifelse(DOI=="NA", NA, paste(DOI))) %>%
+  mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal)))
 ```
 
 ```{r}
@@ -120,7 +120,7 @@ linkedpairs3 <- dfpairs3
 
 ```{r}
 #Run compare.dedup function and block by Author&Year OR Title&Year
-newpairs4 = compare.dedup(newdatformatted, blockfld = list(c(1,3), c(3,2)), strcmp = TRUE, exclude= "RecordID")
+newpairs4 = compare.dedup(newdatformatted, blockfld = list(c(1,3), c(3,2), c(2,9), c(2,4)), strcmp = TRUE, exclude= "RecordID")
 
 dfpairs4 <- as.data.frame(newpairs4$pairs)
 
@@ -204,10 +204,10 @@ SeePairsFiltered <- unique(SeePairsFiltered)
 ```
 
 ```{r}
-SeePairs$Year1 <- as.numeric(as.character(SeePairs$Year1))
-SeePairs$Year2 <- as.numeric(as.character(SeePairs$Year2))
+SeePairsFiltered$Year1 <- as.numeric(as.character(SeePairsFiltered$Year1))
+SeePairsFiltered$Year2 <- as.numeric(as.character(SeePairsFiltered$Year2))
 
-YearsDiff <- SeePairs[which(SeePairs$Year1 != SeePairs$Year2),]
+YearsDiff <- SeePairsFiltered[which(SeePairsFiltered$Year1 != SeePairsFiltered$Year2),]
 YearsNotVeryDiff1 <- YearsDiff[which(YearsDiff$Year1 == YearsDiff$Year2+1 ),]
 YearsNotVeryDiff2 <- YearsDiff[which(YearsDiff$Year1 == YearsDiff$Year2-1 ),]
 
@@ -218,12 +218,12 @@ YearsVeryDiff <- YearsDiff[which(!rownames(YearsDiff) %in% rownames(YearsNotVery
 
 ManualDedup <- YearsVeryDiff 
 
-SeePairs <- SeePairs[which(!rownames(SeePairs) %in% rownames(YearsVeryDiff)),]
+SeePairsFiltered <- SeePairsFiltered[which(!rownames(SeePairsFiltered) %in% rownames(YearsVeryDiff)),]
 
-SeePairs <- unique(SeePairs)
+SeePairsFiltered <- unique(SeePairsFiltered)
 
-SeePairs$RecordID1 <- as.character(SeePairs$RecordID1)
-SeePairs$RecordID2 <- as.character(SeePairs$RecordID2)
+SeePairsFiltered$RecordID1 <- as.character(SeePairsFiltered$RecordID1)
+SeePairsFiltered$RecordID2 <- as.character(SeePairsFiltered$RecordID2)
 ```
 
 ```{r}
@@ -237,7 +237,7 @@ SeePairsCheckSample <- SeePairs[sample(500),]
 dedupdat <- newdat
 dedupdat$RecordID <- as.character(dedupdat$RecordID)
 
-SeePairsToDedup <- SeePairs
+SeePairsToDedup <- SeePairsFiltered
 
 #Keep latest year
 linkedpairskeepyear1 <- SeePairsToDedup[which(as.numeric(SeePairsToDedup$Year1) > as.numeric(SeePairsToDedup$Year2)),]
@@ -251,15 +251,40 @@ removerefs3unique <- removerefs3[!removerefs3 %in% removerefs2]
 SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeepyear2)),]
 dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs3),]
 
+linkedpairskeep1 <- SeePairsToDedup[which(is.na(SeePairsToDedup$Abstract2) & !is.na(SeePairsToDedup$Abstract1)),]
+removerefs1 <- unique(linkedpairskeep1$RecordID2)
+SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeep1)),]
+dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs1),]
+
 #Keep 2 for all other references 
-removedalreadyID <- c(removerefs2, removerefs3)
+removedalreadyID <- c(removerefs2, removerefs3, removerefs1)
 removedalreadyID <- unique(removedalreadyID)
-removedalready <- c(rownames(linkedpairskeepyear2), rownames(linkedpairskeepyear1))
+removedalready <- c(rownames(linkedpairskeepyear2), rownames(linkedpairskeepyear1), rownames(linkedpairskeep1))
 
 linkedpairskeep2 <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% removedalready),]
 removerefs4 <- unique(linkedpairskeep2$RecordID1)
 SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairskeep2)),]
 dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefs4),]
+
+dedupdat <- unique(dedupdat)
+
+checkremovedalreadyID <- c(removerefs1, removerefs2, removerefs3, removerefs4)
+checkremovedalreadyID <-unique(checkremovedalreadyID)
+  
+dedupdat<-unique(dedupdat)
+```
+
+
+```{r}
+IDsMatched <- c(SeePairsFiltered$RecordID1, SeePairsFiltered$RecordID2)
+
+MaybePairs <- SeePairs %>%
+  filter(!RecordID1 %in% IDsMatched) %>%
+   filter(!RecordID2 %in% IDsMatched) %>%
+  filter(Title>0.80 & Author>0.75)
+
+MaybePairs <- rbind(MaybePairs, ManualDedup)
+MaybePairs <- unique(MaybePairs)  
 ```
 
 ```{r}
