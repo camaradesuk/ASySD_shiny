@@ -5,8 +5,9 @@ account: camarades
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 975699
-bundleId: 2855649
+bundleId: 2945698
 url: https://camarades.shinyapps.io/RDedup/
-when: 1583455904.50783
+when: 1585599934.34969
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: functions/dedup_labelled_refs.R|functions/dedup.R|functions/format_for_dedup.R

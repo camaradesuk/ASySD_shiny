@@ -49,12 +49,23 @@ shinyWidgets::radioGroupButtons(
                 style = "color: steelblue"))
 ),
 
+
 # Input: Select a file ----
 
 fileInput("uploadfile", "Choose a file to upload",
           multiple = FALSE,
           placeholder = "No file selected"),
 
+
+# Input: Label references to keep in dataset 
+
+textOutput("If you want to preferentially keep records with a specific label e.g. old records if you have an updated search, specify it below. Otherwise click Deduplicate as normal"),
+
+selectInput(inputId = "keepIn", 
+            label = "Specify labelled references to keep in the dataset",
+            choices = "",
+            selected = "De-duplicate as norman",
+            multiple = FALSE),
 
 # Output: Datatable ----
 
@@ -126,22 +137,40 @@ h3("Download unique references and reference pairs"),
 
 br(),
 
+
+p("Download unique records after automated and manual deduplication"),
 downloadButton("downloadUniqueDataManual", "Download unique references - including manual deduplication"),
 
 br(),
-
-downloadButton("downloadData", "Download unique references - automated deduplication"),
-
+br(),
 br(),
 
-downloadButton("downloadPairs", "Download reference pairs - automated deduplication"),
-
-br(),
-
+p("Download SyRF-ready unique records after automated and manual deduplication which you can upload directly to a SyRF project"),
+p("To find out more about our systematic review platform SyRF, visit", tags$a(href="http://syrf.org.uk/", "SyRF.org.uk")),
 downloadButton("downloadSyRFData", "Download SyRF-ready csv - including manual deduplication"),
 
 br(),
+br(),
+br(),
 
+p("Download unique records after automated deduplication"),
+downloadButton("downloadData", "Download unique references - automated deduplication"),
+
+br(),
+br(),
+br(),
+
+
+p("Download all matching pairs of records detected by automated deduplication"),
+downloadButton("downloadPairs", "Download reference pairs - automated deduplication"),
+
+br(),
+br(),
+br(),
+
+
+p("Download all potentially matching pairs of records detected by automated deduplication - please note that many of these will not 
+           be true matches as they have not been filtered by our true match algorithm"),
 downloadButton("downloadManual", "Download all potentially matching pairs")),
 
 tabPanel("About",
@@ -176,7 +205,7 @@ tabPanel("About",
            
          )))
 
-server <- function(input, output){
+server <- function(input, output, session){
   
 RefData <- reactive({ 
   
@@ -211,11 +240,13 @@ RefData <- reactive({
       RecordID = sapply(x, xpath2, ".//rec-number", xmlValue),
       SecondaryTitle = sapply(x, xpath2, ".//titles/secondary-title", xmlValue),
       "PDF Relative Path" = sapply(x, xpath2, ".//urls/pdf-urls", xmlValue), 
-      Url = sapply(x, xpath2, ".//urls/related-urls", xmlValue)
+      Url = sapply(x, xpath2, ".//urls/related-urls", xmlValue),
+      Label = sapply(x, xpath2, ".//label", xmlValue)
       )
-        newdat <- newdat %>%
-          mutate(Label = RecordID)
-        return(newdat)
+    
+      newdat <- newdat %>%
+       mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
+       return(newdat)
     }
     
     else if (input$fileType=="CSV"){
@@ -233,7 +264,7 @@ RefData <- reactive({
                  RecordID)
         
         newdat <- newdat %>%
-          mutate(Label = RecordID)
+          mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
         
         return(newdat)
     }
@@ -254,11 +285,19 @@ RefData <- reactive({
                  RecordID)
         
         newdat <- newdat %>%
-          mutate(Label = RecordID)
+          mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
         
         return(newdat)
       }
  })
+
+# Get choices for keep label
+
+observe({
+  updateSelectInput(session,
+                    "keepIn",
+                    choices = c("De-duplicate as normal", RefData()$Label))
+})
   
 # Datatable of input data ---- 
  
@@ -274,7 +313,8 @@ output$contents <- renderDT(
 
 dedupData <- eventReactive(input$dedupbutton,{
 
-   result <- dedup_refs(RefData())
+   result <- dedup_refs(RefData(),
+                        LabelKeep = input$keepIn)
    return(result)
  })
 
