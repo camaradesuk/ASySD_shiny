@@ -261,7 +261,8 @@ RefData <- reactive({
                  Volume,
                  Number,
                  Abstract,
-                 RecordID)
+                 RecordID,
+                 Label)
         
         newdat <- newdat %>%
           mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
@@ -282,7 +283,8 @@ RefData <- reactive({
                  Volume,
                  Number,
                  Abstract,
-                 RecordID)
+                 RecordID,
+                 Label)
         
         newdat <- newdat %>%
           mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
