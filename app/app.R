@@ -22,6 +22,14 @@ require(RecordLinkage) #contains compare.dedup function
 options(shiny.maxRequestSize=300*1024^2)
 source("functions/dedup_refs.R")
 
+#url <- "https://cran.r-project.org/src/contrib/Archive/RecordLinkage/RecordLinkage_0.4-11.2.tar.gz"
+#pkgFile <- "RecordLinkage_0.4-11.2.tar.gz"
+#download.file(url = url, destfile = pkgFile)
+#install.packages(pkgs=pkgFile, type="source", repos=NULL)
+
+
+
+
 # App title ----
 ui <- navbarPage("ASySD",
   

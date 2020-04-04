@@ -31,7 +31,7 @@ dedup_refs <-function(x,
   
   if(LabelKeep == "De-duplicate as normal"){
     
-  # Format data -----------------------------------------------
+    # Format data -----------------------------------------------
     
     # Select relevant columns
     newdatformatted <-  x  %>%
@@ -46,7 +46,7 @@ dedup_refs <-function(x,
     
     # Make sure author is a character
     newdatformatted$Author <- as.character(newdatformatted$Author)
-   
+    
     # Fix author formatting so similar
     newdatformatted <- newdatformatted %>%
       mutate(Author = ifelse(Author=="", "Unknown", Author)) %>%
@@ -98,15 +98,16 @@ dedup_refs <-function(x,
     dfpairs <- as.data.frame(newpairs$pairs)
     linkedpairs <- dfpairs
     
-    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Year&Pages&DOI 
-    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(3,8,6)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages 
+    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    
     
     #Create df of pairs
     dfpairs2 <- as.data.frame(newpairs2$pairs)
     linkedpairs2 <- dfpairs2
     
-    # ROUND 3: run compare.dedup function and block by Year&Pages&Volume OR Year&Issue&Volume
-    newpairs3 = compare.dedup(newdatformatted, blockfld = list(c(3,8,9), c(3,7,9)), strcmp = TRUE, exclude=c("RecordID", "Label"))
+    # ROUND 3: run compare.dedup function and block by Year&Pages&Volume OR Year&Issue&Volume or Year&Pages&Issue
+    newpairs3 = compare.dedup(newdatformatted, blockfld = list(c(3,8,9), c(3,7,9), c(3,8,7)), strcmp = TRUE, exclude=c("RecordID", "Label"))
     
     #Create df of pairs
     dfpairs3 <- as.data.frame(newpairs3$pairs)
@@ -194,7 +195,7 @@ dedup_refs <-function(x,
           (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
           (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
     
-   
+    
     # Find papers with low matching DOIs - often indicates FALSE positive matches
     SeePairsFilteredDOIBAD <- SeePairsFiltered %>%
       filter(!(is.na(DOI)| DOI ==0 | DOI > 0.99)) %>%
@@ -262,8 +263,6 @@ dedup_refs <-function(x,
       arrange(Order) %>%
       select(-Order)
     
-    newdatformatted %>%
-      arrange(match(Label, LabelKeep))
     # Rename this ordered data as y
     y <- newdatformatted
     
@@ -321,15 +320,16 @@ dedup_refs <-function(x,
     dfpairs <- as.data.frame(newpairs$pairs)
     linkedpairs <- dfpairs
     
-    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Year&Pages&DOI 
-    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(3,8,6)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages 
+    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    
     
     #Create df of pairs
     dfpairs2 <- as.data.frame(newpairs2$pairs)
     linkedpairs2 <- dfpairs2
     
-    # ROUND 3: run compare.dedup function and block by Year&Pages&Volume OR Year&Issue&Volume
-    newpairs3 = compare.dedup(newdatformatted, blockfld = list(c(3,8,9), c(3,7,9)), strcmp = TRUE, exclude=c("RecordID", "Label"))
+    # ROUND 3: run compare.dedup function and block by Year&Pages&Volume OR Year&Issue&Volume or Year&Pages&Issue
+    newpairs3 = compare.dedup(newdatformatted, blockfld = list(c(3,8,9), c(3,7,9), c(3,8,7)), strcmp = TRUE, exclude=c("RecordID", "Label"))
     
     #Create df of pairs
     dfpairs3 <- as.data.frame(newpairs3$pairs)
@@ -456,12 +456,9 @@ dedup_refs <-function(x,
     dedupdat <- newdatformatted
     dedupdat$RecordID <- as.character(dedupdat$RecordID)
     
-    SeePairsToDedup <- SeePairsFiltered
-    
     # Keep record1 and remove record2
-    linkedpairslabelledkeep1 <- SeePairsToDedup
+    linkedpairslabelledkeep1 <- SeePairsFiltered
     removerefslabelled <- unique(linkedpairslabelledkeep1$RecordID2)
-    SeePairsToDedup <- SeePairsToDedup[which(!rownames(SeePairsToDedup) %in% rownames(linkedpairslabelledkeep1)),]
     dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefslabelled),]
     
     # Get list of references removed
@@ -470,13 +467,10 @@ dedup_refs <-function(x,
     
   }
   
-  removedat <- y
-  removedat <-y[which(removedat$RecordID %in% checkremovedalreadyID),]
-  
   # Get potential duplicates for manual deduplication
   MaybePairs <- SeePairs %>%
     filter(RecordID1 %in% dedupdat$RecordID & 
-           RecordID2 %in% dedupdat$RecordID) %>%
+             RecordID2 %in% dedupdat$RecordID) %>%
     filter(Title>0.85 & Author>0.75 |
              Title>0.85 & Abstract>0.80 |
              Title>0.85 & Journal>0.80)
@@ -485,8 +479,41 @@ dedup_refs <-function(x,
   MaybePairs <- rbind(MaybePairs, ManualDedup, SeePairsFilteredDOIBAD)
   MaybePairs <- unique(MaybePairs)   
   
+  y$RecordID <- as.character(y$RecordID)
+  dedupdat$RecordID <- as.character(dedupdat$RecordID)
+  
+  uniquedat <- y %>%
+    filter(RecordID %in% dedupdat$RecordID) 
+  
+  #Remove one recordID1 when 2 match the same recordID2
+  additional <- SeePairsFiltered %>%
+    filter(RecordID1 %in% uniquedat$RecordID) %>%
+    group_by(RecordID2) %>%
+    mutate(N = length(unique(RecordID1))) %>%
+    filter(N>1) %>%
+    select(-N) %>%
+    mutate(RecordID1 = first(RecordID1)) %>%
+    mutate(Label1 = "additionaldup") %>%
+    ungroup()
+  
+  uniquedat <- uniquedat %>%
+    filter(!RecordID %in% unique(additional$RecordID1))
+  
+  MaybePairs <- MaybePairs %>%
+    filter(RecordID1 %in% uniquedat$RecordID &
+             RecordID2 %in% uniquedat$RecordID)
+  
+  SeePairsFiltered <- rbind(SeePairsFiltered, additional)
+  SeePairsFiltered <- as.data.frame(SeePairsFiltered)
+  
+  removedat <- y
+  removedat <-removedat %>%
+    filter(!RecordID %in% uniquedat$RecordID)
+  
+  
   return(list("ManualDedup" = MaybePairs,
-              "Unique" = dedupdat,
+              "Added" = additional,
+              "Unique" = uniquedat,
               "TruePairs" = SeePairsFiltered,
               "PotentialPairs" = SeePairs,
               "DuplicateRefsRemoved" = removedat))
