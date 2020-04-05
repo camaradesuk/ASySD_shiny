@@ -69,6 +69,9 @@ dedup_refs <-function(x,
     newdatformatted["Year"] <- as.data.frame(sapply(newdatformatted["Year"], function(x) gsub("[[:punct:]]", "", x)))
     newdatformatted["Abstract"] <- as.data.frame(sapply(newdatformatted["Abstract"], function(x) gsub("[[:punct:]]", "", x)))
     
+    newdatformatted["ISBN"] <- as.data.frame(sapply(newdatformatted["ISBN"], function(x) gsub("[[:space:]]\\(PRINT\\).*", "", x)))
+    newdatformatted["ISBN"] <- as.data.frame(sapply(newdatformatted["ISBN"], function(x) gsub("[[:space:]]\\(ELECTRONIC\\).*", "", x)))
+    
     newdatformatted <- unique(newdatformatted)
     
     newdatformatted<-newdatformatted %>%
@@ -84,10 +87,11 @@ dedup_refs <-function(x,
       mutate(Pages = ifelse(Pages=="NA", NA, paste(Pages))) %>%
       mutate(Abstract = ifelse(Abstract=="NA", NA, paste(Abstract))) %>%
       mutate(DOI = ifelse(DOI=="NA", NA, paste(DOI))) %>%
-      mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal)))
+      mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal))) %>%
+      mutate(ISBN = ifelse(ISBN=="", NA, paste(ISBN)))
     
     newdatformatted<- newdatformatted %>%
-      select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, RecordID, Label)
+      select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, ISBN, RecordID, Label)
     
     # Deduplication steps ---------------------------------------
     
@@ -98,8 +102,8 @@ dedup_refs <-function(x,
     dfpairs <- as.data.frame(newpairs$pairs)
     linkedpairs <- dfpairs
     
-    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages 
-    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages OR Journal&Volume&Pages or Title&ISBN
+    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8), c(10,9,8), c(2,10)), strcmp = TRUE, exclude= c("RecordID", "Label"))
     
     
     #Create df of pairs
@@ -150,25 +154,30 @@ dedup_refs <-function(x,
     SeePairs <- SeePairs  %>%
       mutate(Journal1 =y$Journal[id1]) %>%
       mutate(Journal2 =y$Journal[id2]) %>%
+      mutate(ISBN1 =y$ISBN[id1]) %>%
+      mutate(ISBN2 =y$ISBN[id2]) %>%
       mutate(RecordID1=y$RecordID[id1]) %>%
       mutate(RecordID2 =y$RecordID[id2]) %>%
       mutate(Label1 =y$Label[id1]) %>%
       mutate(Label2 =y$Label[id2])
     
     SeePairs <- SeePairs %>%
-      select(id1, id2, Author1, Author2, Author, Title1, Title2, Title, Abstract1, Abstract2, Abstract, Year1, Year2, Year, Number1, Number2, Number, Pages1, Pages2, Pages, Volume1, Volume2, Volume, Journal1, Journal2, Journal, DOI1, DOI2, DOI, RecordID1, RecordID2, Label1, Label2)
+      select(id1, id2, Author1, Author2, Author, Title1, Title2, Title, Abstract1, Abstract2, Abstract, Year1, Year2, Year, Number1, Number2, Number, Pages1, Pages2, Pages, Volume1, Volume2, Volume, Journal1, Journal2, Journal, ISBN, ISBN1, ISBN2, DOI1, DOI2, DOI, RecordID1, RecordID2, Label1, Label2)
     
     SeePairs <- SeePairs %>%
       mutate(Abstract = ifelse(is.na(Abstract1) & is.na(Abstract2), 0, Abstract)) %>%
       mutate(Pages = ifelse(is.na(Pages1) & is.na(Pages2), 1, Pages)) %>%
       mutate(Volume = ifelse(is.na(Volume1) & is.na(Volume2), 1, Volume)) %>%
       mutate(Number = ifelse(is.na(Number1) & is.na(Number2), 1, Number)) %>%
-      mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) 
+      mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) %>%
+      mutate(ISBN = ifelse(is.na(ISBN1) & is.na(ISBN2), 0, ISBN)) 
+    
     
     # Filter matching pairs to less likely unlikely pairs - make sure we only remove true duplicate matches
     SeePairsFiltered <- SeePairs %>%
       filter(    
-        (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+        (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
           (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) | 
           
@@ -186,24 +195,31 @@ dedup_refs <-function(x,
           (Volume>0.8 & Number>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9  & Journal>0.75) |
           
           (Title>0.9 & Author>0.9 & Abstract>0.9 & Journal >0.7)|
+          (Title>0.9 & Author>0.9 & Abstract>0.9 & ISBN >0.99)|
           
           (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) | 
           (Number>0.9 & Volume>0.9 & Title>0.90 & Author>0.90 & Journal>0.6) | 
           (Pages>0.9 & Volume>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) |
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
           
-          (Pages>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9) |
-          (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
-          (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & Journal>0.9) |
+          (Number>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & Journal>0.9)|
+          (Number>0.8 & Pages>0.8 & Title>0.95 & Author>0.80 & Journal>0.9) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99))
     
     
     # Find papers with low matching DOIs - often indicates FALSE positive matches
     SeePairsFilteredDOIBAD <- SeePairsFiltered %>%
       filter(!(is.na(DOI)| DOI ==0 | DOI > 0.99)) %>%
-      filter(!(Pages > 0.9 & Abstract > 0.9))
+      filter(!(Title > 0.9 & Abstract > 0.9 & (Journal|ISBN > 0.9)))
     
     # Remove papers with low matching DOIs from filtered matched
     SeePairsFiltered <- SeePairsFiltered %>%
-      filter(is.na(DOI)| DOI > 0.99 | DOI == 0 | (Pages >0.9 & Abstract>0.9))
+      filter(is.na(DOI)| DOI > 0.99 | DOI == 0 | (Title > 0.9 & Abstract>0.9 & (Journal|ISBN > 0.9)))
     
     SeePairsFiltered <- unique(SeePairsFiltered)
     
@@ -291,6 +307,9 @@ dedup_refs <-function(x,
     newdatformatted["Year"] <- as.data.frame(sapply(newdatformatted["Year"], function(x) gsub("[[:punct:]]", "", x)))
     newdatformatted["Abstract"] <- as.data.frame(sapply(newdatformatted["Abstract"], function(x) gsub("[[:punct:]]", "", x)))
     
+    newdatformatted["ISBN"] <- as.data.frame(sapply(newdatformatted["ISBN"], function(x) gsub("[[:space:]]\\(PRINT\\).*", "", x)))
+    newdatformatted["ISBN"] <- as.data.frame(sapply(newdatformatted["ISBN"], function(x) gsub("[[:space:]]\\(ELECTRONIC\\).*", "", x)))
+    
     newdatformatted <- unique(newdatformatted)
     
     newdatformatted<-newdatformatted %>%
@@ -306,10 +325,11 @@ dedup_refs <-function(x,
       mutate(Pages = ifelse(Pages=="NA", NA, paste(Pages))) %>%
       mutate(Abstract = ifelse(Abstract=="NA", NA, paste(Abstract))) %>%
       mutate(DOI = ifelse(DOI=="NA", NA, paste(DOI))) %>%
-      mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal)))
+      mutate(Journal = ifelse(Journal=="NA", NA, paste(Journal))) %>%
+      mutate(ISBN = ifelse(ISBN=="", NA, paste(ISBN)))
     
     newdatformatted<- newdatformatted %>%
-      select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, RecordID, Label)
+      select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, ISBN, RecordID, Label)
     
     # Deduplication steps ---------------------------------------
     
@@ -320,8 +340,8 @@ dedup_refs <-function(x,
     dfpairs <- as.data.frame(newpairs$pairs)
     linkedpairs <- dfpairs
     
-    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages 
-    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8)), strcmp = TRUE, exclude= c("RecordID", "Label"))
+    # ROUND 2: run compare.dedup function and block by Author&Year&Pages OR Journal&Volume&Pages OR Journal&Volume&Pages or Title&ISBN
+    newpairs2 = compare.dedup(newdatformatted, blockfld = list(c(1,3,8), c(4,9,8), c(10,9,8), c(2,10)), strcmp = TRUE, exclude= c("RecordID", "Label"))
     
     
     #Create df of pairs
@@ -372,25 +392,30 @@ dedup_refs <-function(x,
     SeePairs <- SeePairs  %>%
       mutate(Journal1 =y$Journal[id1]) %>%
       mutate(Journal2 =y$Journal[id2]) %>%
+      mutate(ISBN1 =y$ISBN[id1]) %>%
+      mutate(ISBN2 =y$ISBN[id2]) %>%
       mutate(RecordID1=y$RecordID[id1]) %>%
       mutate(RecordID2 =y$RecordID[id2]) %>%
       mutate(Label1 =y$Label[id1]) %>%
       mutate(Label2 =y$Label[id2])
     
     SeePairs <- SeePairs %>%
-      select(id1, id2, Author1, Author2, Author, Title1, Title2, Title, Abstract1, Abstract2, Abstract, Year1, Year2, Year, Number1, Number2, Number, Pages1, Pages2, Pages, Volume1, Volume2, Volume, Journal1, Journal2, Journal, DOI1, DOI2, DOI, RecordID1, RecordID2, Label1, Label2)
+      select(id1, id2, Author1, Author2, Author, Title1, Title2, Title, Abstract1, Abstract2, Abstract, Year1, Year2, Year, Number1, Number2, Number, Pages1, Pages2, Pages, Volume1, Volume2, Volume, Journal1, Journal2, Journal, ISBN, ISBN1, ISBN2, DOI1, DOI2, DOI, RecordID1, RecordID2, Label1, Label2)
     
     SeePairs <- SeePairs %>%
       mutate(Abstract = ifelse(is.na(Abstract1) & is.na(Abstract2), 0, Abstract)) %>%
       mutate(Pages = ifelse(is.na(Pages1) & is.na(Pages2), 1, Pages)) %>%
       mutate(Volume = ifelse(is.na(Volume1) & is.na(Volume2), 1, Volume)) %>%
       mutate(Number = ifelse(is.na(Number1) & is.na(Number2), 1, Number)) %>%
-      mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) 
+      mutate(DOI = ifelse(is.na(DOI1) & is.na(DOI2), 0, DOI)) %>%
+      mutate(ISBN = ifelse(is.na(ISBN1) & is.na(ISBN2), 0, ISBN)) 
+    
     
     # Filter matching pairs to less likely unlikely pairs - make sure we only remove true duplicate matches
     SeePairsFiltered <- SeePairs %>%
       filter(    
-        (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
+        (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
           (Pages>0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50 & Journal>0.6) | 
           (Volume >0.8 & Number>0.8 & Title>0.90 & Abstract>0.90 & Author>0.50  & Journal>0.6) | 
           
@@ -408,24 +433,31 @@ dedup_refs <-function(x,
           (Volume>0.8 & Number>0.8 & Title>0.90 & Abstract>0.8 & Author>0.9  & Journal>0.75) |
           
           (Title>0.9 & Author>0.9 & Abstract>0.9 & Journal >0.7)|
+          (Title>0.9 & Author>0.9 & Abstract>0.9 & ISBN >0.99)|
           
           (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) | 
           (Number>0.9 & Volume>0.9 & Title>0.90 & Author>0.90 & Journal>0.6) | 
           (Pages>0.9 & Volume>0.9 & Title>0.90 & Author>0.80 & Journal>0.6) |
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
+          (Pages>0.9 & Number>0.9 & Title>0.90 & Author>0.80 & ISBN>0.99) | 
           
-          (Pages>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9) |
-          (Number>0.8 & Volume>0.8 & Title>0.90 & Author>0.80 & Journal>0.9)|
-          (Number>0.8 & Pages>0.8 & Title>0.90 & Author>0.80 & Journal>0.9))
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & Journal>0.9) |
+          (Number>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & Journal>0.9)|
+          (Number>0.8 & Pages>0.8 & Title>0.95 & Author>0.80 & Journal>0.9) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99) |
+          (Pages>0.8 & Volume>0.8 & Title>0.95 & Author>0.80 & ISBN>0.99))
     
     
     # Find papers with low matching DOIs - often indicates FALSE positive matches
     SeePairsFilteredDOIBAD <- SeePairsFiltered %>%
       filter(!(is.na(DOI)| DOI ==0 | DOI > 0.99)) %>%
-      filter(!(Pages > 0.9 & Abstract > 0.9))
+      filter(!(Title > 0.9 & Abstract > 0.9 & (Journal|ISBN > 0.9)))
     
     # Remove papers with low matching DOIs from filtered matched
     SeePairsFiltered <- SeePairsFiltered %>%
-      filter(is.na(DOI)| DOI > 0.99 | DOI == 0 | (Pages >0.9 & Abstract>0.9))
+      filter(is.na(DOI)| DOI > 0.99 | DOI == 0 | (Title > 0.9 & Abstract>0.9 & (Journal|ISBN > 0.9)))
     
     SeePairsFiltered <- unique(SeePairsFiltered)
     
@@ -467,13 +499,27 @@ dedup_refs <-function(x,
     
   }
   
+  # Get original data ready for removing duplicates
+  dedupdat <- newdatformatted
+  dedupdat$RecordID <- as.character(dedupdat$RecordID)
+  
+  # Keep record1 and remove record2
+  linkedpairslabelledkeep1 <- SeePairsFiltered
+  removerefslabelled <- unique(linkedpairslabelledkeep1$RecordID2)
+  dedupdat <- dedupdat[which(!dedupdat$RecordID %in% removerefslabelled),]
+  
+  # Get list of references removed
+  checkremovedalreadyID <- c(removerefslabelled)
+  checkremovedalreadyID <-unique(checkremovedalreadyID)
+  
   # Get potential duplicates for manual deduplication
   MaybePairs <- SeePairs %>%
     filter(RecordID1 %in% dedupdat$RecordID & 
              RecordID2 %in% dedupdat$RecordID) %>%
     filter(Title>0.85 & Author>0.75 |
              Title>0.85 & Abstract>0.80 |
-             Title>0.85 & Journal>0.80)
+             Title>0.85 & Journal>0.80 |
+             Title>0.85 & ISBN>0.99)
   
   # Add in problem DOI matching pairs and different year data in ManualDedup
   MaybePairs <- rbind(MaybePairs, ManualDedup, SeePairsFilteredDOIBAD)
@@ -482,7 +528,7 @@ dedup_refs <-function(x,
   y$RecordID <- as.character(y$RecordID)
   dedupdat$RecordID <- as.character(dedupdat$RecordID)
   
-  uniquedat <- y %>%
+  uniquedat <- x %>%
     filter(RecordID %in% dedupdat$RecordID) 
   
   #Remove one recordID1 when 2 match the same recordID2
@@ -506,7 +552,7 @@ dedup_refs <-function(x,
   SeePairsFiltered <- rbind(SeePairsFiltered, additional)
   SeePairsFiltered <- as.data.frame(SeePairsFiltered)
   
-  removedat <- y
+  removedat <- x
   removedat <-removedat %>%
     filter(!RecordID %in% uniquedat$RecordID)
   
@@ -517,5 +563,4 @@ dedup_refs <-function(x,
               "TruePairs" = SeePairsFiltered,
               "PotentialPairs" = SeePairs,
               "DuplicateRefsRemoved" = removedat))
-  
 }
