@@ -23,7 +23,7 @@ library(RecordLinkage) #contains compare.dedup function
 library(XML)
 library(RCurl)
 
-xmldat<-xmlParse("data.xml")
+xmldat<-xmlParse("DedupData_real/EpilepsySearch260318_export060819.xml")
 x <-  getNodeSet(xmldat,'//record')
 
 xpath2 <-function(x, ...){
@@ -46,7 +46,7 @@ RecordID = sapply(x, xpath2, ".//rec-number", xmlValue),
 SecondaryTitle = sapply(x, xpath2, ".//titles/secondary-title", xmlValue)
  )
 
-newdat <- newdat %>% 
+newdat  <- newdat %>% 
  mutate(Journal=ifelse(is.na(Journal), paste(SecondaryTitle), paste(Journal)))
 
 ```
@@ -200,6 +200,10 @@ SeePairsFiltered <- SeePairs %>%
 
 SeePairs <- unique(SeePairs)
 SeePairsFiltered <- unique(SeePairsFiltered) 
+
+#Added part 18/04/19 due to issues with 2 part papers or those with very similar titles with same journal/author/year being considered duplicates (more of an issue for older studies)
+  SeePairsFiltered<- SeePairsFiltered %>%
+    filter(is.na(DOI)| DOI > 0.99 | DOI ==0 | DOI < 0.99 & Pages>0.9 & Abstract>0.9)
   
 ```
 
@@ -274,6 +278,41 @@ checkremovedalreadyID <-unique(checkremovedalreadyID)
 dedupdat<-unique(dedupdat)
 ```
 
+```{r}
+removedrecords<- c(removerefs1, removerefs2, removerefs3, removerefs4)
+
+Labelled_duplicates_epilepsy <-newdat %>%
+  mutate(DuplicateStatus = ifelse(RecordID %in% removedrecords, "DuplicateToRemove", "KeepRecord"))
+
+write.csv(Labelled_duplicates_epilepsy, "Labelled_duplicates_epilepsy.csv")
+write.csv(dedupdat, "dedupdat.csv")
+```
+
+
+
+```{r}
+#Easy inport to Endnote as tab-delimited file
+  dedupEndnote <- dedupdat %>%
+    mutate("Reference Type" = paste("Journal Article")) %>%
+    mutate("Secondary Title" = Journal) %>%
+    mutate(Label = RecordID) %>%
+    select("Reference Type", Author, Title, "Secondary Title", Label, Volume, Pages, Number, DOI, Year, Abstract) 
+  
+  dedupEndnote$Author <- as.character(dedupEndnote$Author)
+  dedupEndnote$Title <- as.character(dedupEndnote$Title)
+  dedupEndnote$Volume <- as.character(dedupEndnote$Volume)
+  dedupEndnote$Pages <- as.character(dedupEndnote$Pages)
+  dedupEndnote$Number <- as.character(dedupEndnote$Number)
+  dedupEndnote$DOI <- as.character(dedupEndnote$DOI)
+  dedupEndnote$Abstract <- as.character(dedupEndnote$Abstract)
+  dedupEndnote$Year <- as.character(dedupEndnote$Year)
+  dedupEndnote$"Secondary Title" <- as.character(dedupEndnote$"Secondary Tile")
+  dedupEndnote$Label <- as.character(dedupEndnote$Label)
+  
+  dedupEndnote <-insertRows(dedupEndnote, 1, new=matrix(names(dedupEndnote), nrow=1, ncol=11))
+  
+  colnames(dedupEndnote) <- c("*Generic", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ") 
+```
 
 ```{r}
 IDsMatched <- c(SeePairsFiltered$RecordID1, SeePairsFiltered$RecordID2)
