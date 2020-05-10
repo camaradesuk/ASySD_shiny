@@ -20,7 +20,7 @@ library(htmlwidgets)
 library(shinyWidgets)
 require(RecordLinkage) #contains compare.dedup function
 options(shiny.maxRequestSize=300*1024^2)
-source("functions/dedup_refs.R")
+source("functions/dedup_refs_app.R")
 
 # App title ----
 ui <- navbarPage("ASySD",
@@ -171,7 +171,7 @@ br(),
 
 p("Download all potentially matching pairs of records detected by automated deduplication - please note that many of these will not 
            be true matches as they have not been filtered by our true match algorithm"),
-downloadButton("downloadManual", "Download all potentially matching pairs")),
+downloadButton("downloadAllPairs", "Download all potentially matching pairs")),
 
 tabPanel("About",
          
@@ -238,6 +238,7 @@ RefData <- reactive({
       Number = sapply(x, xpath2, ".//number", xmlValue),
       Abstract = sapply(x, xpath2, ".//abstract", xmlValue),
       RecordID = sapply(x, xpath2, ".//rec-number", xmlValue),
+      ISBN = sapply(x, xpath2, ".//isbn", xmlValue),
       SecondaryTitle = sapply(x, xpath2, ".//titles/secondary-title", xmlValue),
       "PDF Relative Path" = sapply(x, xpath2, ".//urls/pdf-urls", xmlValue), 
       Url = sapply(x, xpath2, ".//urls/related-urls", xmlValue),
@@ -262,10 +263,12 @@ RefData <- reactive({
                  Number,
                  Abstract,
                  RecordID,
+                 ISBN,
                  Label)
         
         newdat <- newdat %>%
-          mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
+          mutate(Label = ifelse(is.na(Label), "NA", paste(Label))) %>%
+          mutate(Label = ifelse(is.na(ISBN), "NA", paste(ISBN)))
         
         return(newdat)
     }
@@ -284,10 +287,12 @@ RefData <- reactive({
                  Number,
                  Abstract,
                  RecordID,
+                 ISBN,
                  Label)
         
         newdat <- newdat %>%
-          mutate(Label = ifelse(is.na(Label), "NA", paste(Label)))
+          mutate(Label = ifelse(is.na(Label), "NA", paste(Label))) %>%
+          mutate(Label = ifelse(is.na(ISBN), "NA", paste(ISBN)))
         
         return(newdat)
       }
@@ -315,7 +320,7 @@ output$contents <- renderDT(
 
 dedupData <- eventReactive(input$dedupbutton,{
 
-   result <- dedup_refs(RefData(),
+   result <- dedup_refs_app(RefData(),
                         LabelKeep = input$keepIn)
    return(result)
  })
@@ -457,6 +462,15 @@ output$downloadManual <- downloadHandler(
   content = function(file) {
     write.csv(dedupData()$ManualDedup, file, row.names = TRUE)
     print(nrow(dedupData()$ManualDedup))
+  })
+
+output$downloadAllPairs <- downloadHandler(
+  filename = function() {
+    paste("allpairs", ".csv", sep = ",")
+  },
+  content = function(file) {
+    write.csv(dedupData()$PotentialPairs, file, row.names = TRUE)
+    print(nrow(dedupData()$PotentialPairs))
   })
 
 }

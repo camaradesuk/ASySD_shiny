@@ -1,20 +1,19 @@
 require(RecordLinkage)
 
-dedup_refs <-function(x,
-                      Author = "Author",
-                      Title = "Title",
-                      Year = "Year",
-                      Journal = "Journal",
-                      ISBN = "ISBN",
-                      Abstract = "Abstract",
-                      DOI = "DOI",
-                      Number = "Number",
-                      Pages = "Pages",
-                      Volume = "Volume",
-                      RecordID = "RecordID",
-                      Label = "Label")
-{
-  
+dedup_labelled_step <-function(x,
+                               Author = "Author",
+                               Title = "Title",
+                               Year = "Year",
+                               Journal = "Journal",
+                               ISBN = "ISBN",
+                               Abstract = "Abstract",
+                               DOI = "DOI",
+                               Number = "Number",
+                               Pages = "Pages",
+                               Volume = "Volume",
+                               RecordID = "RecordID",
+                               Label = "Label",
+                               LabelKeep = "De-duplicate as normal"){
   
   # Rename columns if necessary
   x <- x %>%
@@ -31,13 +30,15 @@ dedup_refs <-function(x,
            "RecordID"=RecordID,
            "Label" = Label)
   
-  # Select relevant columns
-  newdatformatted <-  x  %>%
+  #Ensure columns are in this order
+  newdatformatted <- x  %>%
     select(Author, Title, Year, Journal, Abstract, DOI, Number, Pages, Volume, ISBN, RecordID, Label) 
   
-  # Arrange by Year and presence of an Abstract - we want to keep newer records and records with an abstract preferentially
   newdatformatted <- newdatformatted %>%
-    arrange(desc(Year), Abstract)
+    mutate(Order = ifelse(Label == LabelKeep, 1, 2)) %>%
+    arrange(Order) %>%
+    select(-Order) %>%
+    unique()
   
   # Rename this ordered data as y
   y <- newdatformatted
@@ -275,11 +276,26 @@ dedup_refs <-function(x,
   uniquedat <- x %>%
     filter(RecordID %in% dedupdat$RecordID) 
   
+  # #Remove one recordID1 when 2 match the same recordID2
+  # additional <- SeePairsFiltered %>%
+  #   filter(!Label1 == LabelKeep) %>%
+  #   filter(RecordID1 %in% uniquedat$RecordID) %>%
+  #   group_by(RecordID2) %>%
+  #   mutate(N = length(unique(RecordID1))) %>%
+  #   filter(N>1) %>%
+  #   select(-N) %>%
+  #   mutate(RecordID1 = first(RecordID1)) %>%
+  #   mutate(Label1 = "additionaldup") %>%
+  #   ungroup()
+  # 
+  # uniquedat <- uniquedat %>%
+  #   filter(!RecordID %in% unique(additional$RecordID1))
   
   MaybePairs <- MaybePairs %>%
     filter(RecordID1 %in% uniquedat$RecordID &
              RecordID2 %in% uniquedat$RecordID)
   
+  # SeePairsFiltered <- rbind(SeePairsFiltered, additional)
   SeePairsFiltered <- as.data.frame(SeePairsFiltered)
   
   removedat <- x
