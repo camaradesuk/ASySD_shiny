@@ -73,14 +73,15 @@ selectInput(inputId = "keepIn",
             label = "Specify labelled references to keep in the dataset",
             choices = "",
             selected = "De-duplicate as norman",
-            multiple = FALSE),
+            multiple = FALSE)
+)),
 
 # Output: Datatable ----
-
-   DTOutput("contents"),
-
-     conditionalPanel("$('#contents').hasClass('recalculating')",
-                  tags$div('Loading table ... ')))),
+# 
+#    DTOutput("contents"),
+# 
+#      conditionalPanel("$('#contents').hasClass('recalculating')",
+#                   tags$div('Loading table ... ')))),
 
 # Deduplicate files panel  ----
 tabPanel("Deduplicate Data",
@@ -316,11 +317,11 @@ observe({
   
 # Datatable of input data ---- 
  
-output$contents <- renderDT(
-  RefData() %>%
-      select(-Abstract, -Label), 
-    options = list(pageLength = 10)
-  )
+# output$contents <- renderDT(
+#   head(RefData()) %>%
+#       select(-Abstract, -Label), 
+#     options = list(pageLength = 10)
+#   )
     
  observeEvent(input$dedupbutton, {
  print(paste("Deduplicating..."))
