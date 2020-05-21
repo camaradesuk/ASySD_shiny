@@ -1,4 +1,4 @@
-source('~/Kaitlyn/Projects/RDedup/app/functions/dedup_labelled_step.R')
+source('functions/dedup_labelled_step.R')
 
 dedup_labelled_refs <- function (x,
                                  LabelKeep = ""){
@@ -72,9 +72,8 @@ dedup_labelled_refs <- function (x,
   
   manual <- unique(manual)
   
-  
-  unique <- rbind(unique1, unique2)
-  unique <- unique(unique)
+
+  unique <- unique(unique2)
   
   pairs <- rbind(pairs1, pairs2)
   pairs <- unique(pairs)

@@ -1,6 +1,6 @@
 # Deduplicate references 
-source('~/Kaitlyn/Projects/RDedup/app/functions/dedup_labelled_refs.R')
-source('~/Kaitlyn/Projects/RDedup/app/functions/dedup_refs.R')
+source('functions/dedup_labelled_refs.R')
+source('functions/dedup_refs.R')
 
 dedup_refs_app <-function(x,
                       Author = "Author",
