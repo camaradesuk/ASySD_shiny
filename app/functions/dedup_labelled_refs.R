@@ -46,7 +46,7 @@ dedup_labelled_refs <- function (x,
           ) 
     
   
-  result2 <- dedup_refs(result1$Unique)
+  result2 <- dedup_refs(unique1)
   
   manual2id <- result2$ManualDedup 
   manual2 <-result2$ManualDedup  %>%
@@ -72,7 +72,6 @@ dedup_labelled_refs <- function (x,
   
   manual <- unique(manual)
   
-
   unique <- unique(unique2)
   
   pairs <- rbind(pairs1, pairs2)
@@ -82,6 +81,9 @@ dedup_labelled_refs <- function (x,
   allmatches<-unique(allmatches)
   
   removed <- rbind(removed1, removed2)
+  
+  print(length(unique1$RecordID))
+  print(length(unique2$RecordID))
   
   return(list("ManualDedup" = manual,
               "Unique" = unique,
