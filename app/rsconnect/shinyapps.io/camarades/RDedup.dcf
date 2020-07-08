@@ -5,8 +5,8 @@ account: camarades
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 975699
-bundleId: 3169867
+bundleId: 3178059
 url: https://camarades.shinyapps.io/RDedup/
-when: 1589969183.87955
+when: 1590143040.06362
 asMultiple: FALSE
 asStatic: FALSE

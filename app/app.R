@@ -107,8 +107,8 @@ h3("Automated deduplication"),
 br(),
 br(),
 
-conditionalPanel("$('#ASySD_results_removed').hasClass('recalculating')",
-                 tags$div('Loading deduplication results ...')),
+# conditionalPanel("$('#ASySD_results_removed').hasClass('recalculating')",
+#                  tags$div('Loading deduplication results ...')),
 
 textOutput("ASySD_results_removed"),
 textOutput("ASySD_results_unique"),
@@ -154,9 +154,22 @@ br(),
 br(),
 br(),
 
-p("Download SyRF-ready unique records after automated and manual deduplication which you can upload directly to a SyRF project"),
-p("To find out more about our systematic review platform SyRF, visit", tags$a(href="http://syrf.org.uk/", "SyRF.org.uk")),
-downloadButton("downloadSyRFData", "Download SyRF-ready csv - including manual deduplication"),
+p("Download unique records after automated deduplication which you can import to Endnote using the tab delimited import filter and following instructions ", tags$a(href="https://docs.google.com/document/d/1ZWYniGoeVMzaZ6FQgzlu34kX4MY0K4ZeSebriKjQNzk/edit?usp=sharing", "here")),
+downloadButton("downloadEndnoteUniqueData", "Download Endnote .txt file - auto deduplication only"),
+
+
+br(),
+br(),
+br(),
+
+
+# p("Download SyRF-ready unique records after automated and manual deduplication which you can upload directly to a SyRF project"),
+# p("To find out more about our systematic review platform SyRF, visit", tags$a(href="http://syrf.org.uk/", "SyRF.org.uk")),
+# downloadButton("downloadSyRFData", "Download SyRF-ready csv - including manual deduplication"),
+
+p("Download unique records after automated + manual deduplication which you can import to Endnote using the tab delimited import filter and following instructions ", tags$a(href="https://docs.google.com/document/d/1ZWYniGoeVMzaZ6FQgzlu34kX4MY0K4ZeSebriKjQNzk/edit?usp=sharing", "here")),
+downloadButton("downloadEndnoteUniqueDataManual", "Download Endnote .txt file - including manual deduplication"),
+
 
 br(),
 br(),
@@ -221,6 +234,9 @@ RefData <- reactive({
   validate(
     need(input$uploadfile, 'Please choose a file to upload')
   )
+  
+  input$uploadfile
+  isolate(
 
     if (input$fileType=="Endnote XML"){
     
@@ -305,14 +321,23 @@ RefData <- reactive({
         
         return(newdat)
       }
- })
+ )
+  })
 
 # Get choices for keep label
 
 observe({
+  
+  Label <- RefData()$Label
+  
+  # Can use character(0) to remove all choices
+  if (is.null(Label))
+    Label <- "De-duplicate as normal"
+  
+  
   updateSelectInput(session,
                     "keepIn",
-                    choices = c("De-duplicate as normal", RefData()$Label))
+                    choices = c("De-duplicate as normal", Label))
 })
   
 # Datatable of input data ---- 
@@ -322,29 +347,67 @@ observe({
 #       select(-Abstract, -Label), 
 #     options = list(pageLength = 10)
 #   )
-    
- observeEvent(input$dedupbutton, {
- print(paste("Deduplicating..."))
-   })
+  
 
 dedupData <- eventReactive(input$dedupbutton,{
 
-   result <- dedup_refs_app(RefData(),
+  result <- dedup_refs_app(RefData(),
                         LabelKeep = input$keepIn)
    return(result)
  })
 
+observeEvent(input$dedupbutton, {
+  print(paste("Deduplicating..."))
+}, ignoreInit = TRUE, once = TRUE)
 
+# Get reactive data for output to Endnote (no manual)
+
+dedupData_Endnote <- reactive({
+  dedupdat <- dedupData()$Unique %>%  
+    mutate("Reference Type" = "Journal Article") %>%
+    rename("Custom 1" = RecordID,          
+           "Secondary Title" = Journal,       
+           "ISBN/ISSN" = ISBN) %>%
+    select("Reference Type", "Author", "Year",
+           "Secondary Title", "DOI", "Title", 
+           "Pages", "Volume", "Number", "Abstract",
+           "Custom 1", "ISBN/ISSN", "Label") %>%
+    mutate(Abstract = gsub("[\\r\\n]", "", Abstract))
+  
+  return(dedupdat)
+})
+  
+
+# Get reactive data for output to Endnote + manual
+
+dedupData_removemanual_endnote <- eventReactive(input$manualdedupsubmit,{
+
+  removeManual <- dedupData()$ManualDedup %>%
+    select(Author1, Author2, Title1, Title2, Year1, Year2, Journal1, Journal2, DOI1, DOI2, RecordID1, RecordID2)
+
+  removeManual <- removeManual[input$dedup_cells_selected]
+
+  dedupdat <- dedupData()$Unique %>%
+    filter(!RecordID %in% removeManual) %>%
+    mutate("Reference Type" = "Journal Article") %>%
+    rename("Custom 1" = RecordID,
+           "Secondary Title" = Journal,
+           "ISBN/ISSN" = ISBN) %>%
+    mutate(Abstract = gsub("[\\r\\n]", "", Abstract))
+
+  return(dedupdat)
+
+})
 
 dedupData_removemanual <- eventReactive(input$manualdedupsubmit,{
   
   removeManual <- dedupData()$ManualDedup %>%
     select(Author1, Author2, Title1, Title2, Year1, Year2, Journal1, Journal2, DOI1, DOI2, RecordID1, RecordID2)
- 
+  
   removeManual <- removeManual[input$dedup_cells_selected]
   
   dedupdat <- dedupData()$Unique %>%  
-    filter(!RecordID %in% removeManual)
+    filter(!RecordID %in% removeManual) 
   
   return(dedupdat)
   
@@ -433,6 +496,27 @@ output$Manual_results <- renderText({
       write.csv(dedupData()$Unique, file, row.names = TRUE)
       print(nrow(dedupData()$Unique))
     })
+ 
+ output$downloadEndnoteUniqueData <- downloadHandler(
+   filename = function() {
+     paste("uniquedata_Endnote", ".txt", sep = "")
+   },
+   content = function(file) {
+     write.table(dedupData_Endnote(), file, sep="\t", 
+                       col.names=TRUE, row.names = F, quote=FALSE)
+   })
+
+ 
+ 
+ 
+ output$downloadEndnoteUniqueDataManual <- downloadHandler(
+   filename = function() {
+     paste("dedupdata_withmanualdedup", ".txt", sep = "")
+   },
+   content = function(file) {
+     write.table(dedupData_removemanual_endnote(), file, sep="\t", 
+                 col.names=TRUE, row.names = F, quote=FALSE)
+   })
  
  output$downloadSyRFData <- downloadHandler(
    filename = function() {
