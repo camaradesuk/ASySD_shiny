@@ -1,4 +1,4 @@
-# Automated systematic search deduplication tool (ASySD)
+# Automated Systematic Search Deduplication tool (ASySD)
 
 ## Background
 Removing duplicate references obtained from different databases is an essential step when conducting and updating systematic literature reviews. ASySD is a tool to automatically identify and remove duplicate records. 
