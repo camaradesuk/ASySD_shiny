@@ -23,6 +23,6 @@ The features of the underyling code are
 5. Removal of duplicate records based on label (if specified to keep specific label preferentially) or based on which record has an abstract, preferentially removing the one with a missing abstract
 
 ## Tool performance 
-Performance evaluation for the ASySD tool versus other automated de-duplication tools is [ongoing](10.17605/OSF.IO/W3MAK). 
+Performance evaluation for the ASySD tool versus other automated de-duplication tools is [ongoing]( https://doi.org/10.17605/OSF.IO/W3MAK). 
 
 
