@@ -13,21 +13,28 @@ require(readr)
 require(DT)
 require(stringr)
 require(dplyr)
-require(XML)
-require(RCurl)
-require(shinythemes)
+library(rsconnect)
+
+# url <- "https://cran.r-project.org/src/contrib/Archive/XML/XML_3.99-0.3.tar.gz"
+# pkgFile <- "XML_3.99-0.3.tar.gz"
+# download.file(url = url, destfile = pkgFile)
+# install.packages(pkgs=pkgFile, type="source", repos=NULL)
+
+library(XML)
+library(RCurl)
+library(shiny)
+library(shinythemes)
 library(htmlwidgets)
 library(shinyWidgets)
-require(RecordLinkage) #contains compare.dedup function
-options(shiny.maxRequestSize=300*1024^2)
+library(RecordLinkage) #contains compare.dedup function
+options(shiny.maxRequestSize=1000*1024^2, timeout = 40000000)
 source("functions/dedup_refs_app.R")
+
 
 #url <- "https://cran.r-project.org/src/contrib/Archive/RecordLinkage/RecordLinkage_0.4-11.2.tar.gz"
 #pkgFile <- "RecordLinkage_0.4-11.2.tar.gz"
 #download.file(url = url, destfile = pkgFile)
 #install.packages(pkgs=pkgFile, type="source", repos=NULL)
-
-
 
 
 # App title ----
@@ -154,7 +161,7 @@ br(),
 br(),
 br(),
 
-p("Download unique records after automated deduplication which you can import to Endnote using the tab delimited import filter and following instructions ", tags$a(href="https://docs.google.com/document/d/1ZWYniGoeVMzaZ6FQgzlu34kX4MY0K4ZeSebriKjQNzk/edit?usp=sharing", "here")),
+p("Download unique records after automated deduplication which you can import to Endnote using the tab delimited import filter with UTF-8 encoding."),
 downloadButton("downloadEndnoteUniqueData", "Download Endnote .txt file - auto deduplication only"),
 
 
@@ -167,7 +174,7 @@ br(),
 # p("To find out more about our systematic review platform SyRF, visit", tags$a(href="http://syrf.org.uk/", "SyRF.org.uk")),
 # downloadButton("downloadSyRFData", "Download SyRF-ready csv - including manual deduplication"),
 
-p("Download unique records after automated + manual deduplication which you can import to Endnote using the tab delimited import filter and following instructions ", tags$a(href="https://docs.google.com/document/d/1ZWYniGoeVMzaZ6FQgzlu34kX4MY0K4ZeSebriKjQNzk/edit?usp=sharing", "here")),
+p("Download unique records after automated + manual deduplication which you can import to Endnote using the tab delimited import filter with UTF-8 encoding."),
 downloadButton("downloadEndnoteUniqueDataManual", "Download Endnote .txt file - including manual deduplication"),
 
 
@@ -277,7 +284,13 @@ RefData <- reactive({
     
     else if (input$fileType=="CSV"){
       
-        newdat <- read.csv(input$uploadfile$datapath) %>%
+      cols <- c("Label","ISBN")
+
+        newdat <- read.csv(input$uploadfile$datapath) 
+        
+        newdat[cols[!(cols %in% colnames(newdat))]] = NA
+        
+        newdat <- newdat %>%
           select(Author,
                  Year,
                  Journal,
@@ -289,19 +302,22 @@ RefData <- reactive({
                  Abstract,
                  RecordID,
                  ISBN,
-                 Label)
-        
-        newdat <- newdat %>%
+                 Label) %>%
           mutate(Label = ifelse(is.na(Label), "NA", paste(Label))) %>%
-          mutate(Label = ifelse(is.na(ISBN), "NA", paste(ISBN)))
+          mutate(ISBN = ifelse(is.na(ISBN), "NA", paste(ISBN))) 
         
+     
         return(newdat)
     }
   
     
     else if (input$fileType=="TXT"){
       
-        newdat <- read.table(input$uploadfile$datapath) %>%
+        newdat <- read.table(input$uploadfile$datapath)
+        
+        newdat[cols[!(cols %in% colnames(newdat))]] = NA
+        
+        newdat <- newdat %>%
           select(Author,
                  Year,
                  Journal,
@@ -317,7 +333,7 @@ RefData <- reactive({
         
         newdat <- newdat %>%
           mutate(Label = ifelse(is.na(Label), "NA", paste(Label))) %>%
-          mutate(Label = ifelse(is.na(ISBN), "NA", paste(ISBN)))
+          mutate(ISBN = ifelse(is.na(ISBN), "NA", paste(ISBN)))
         
         return(newdat)
       }
@@ -363,8 +379,10 @@ observeEvent(input$dedupbutton, {
 # Get reactive data for output to Endnote (no manual)
 
 dedupData_Endnote <- reactive({
+  
   dedupdat <- dedupData()$Unique %>%  
     mutate("Reference Type" = "Journal Article") %>%
+    mutate(ISBN = gsub("\\r\\n|\\r|\\n", "", ISBN)) %>%
     rename("Custom 1" = RecordID,          
            "Secondary Title" = Journal,       
            "ISBN/ISSN" = ISBN) %>%
@@ -372,7 +390,7 @@ dedupData_Endnote <- reactive({
            "Secondary Title", "DOI", "Title", 
            "Pages", "Volume", "Number", "Abstract",
            "Custom 1", "ISBN/ISSN", "Label") %>%
-    mutate(Abstract = gsub("[\\r\\n]", "", Abstract))
+    mutate(Abstract = gsub("\\r\\n|\\r|\\n", "", Abstract)) 
   
   return(dedupdat)
 })
@@ -389,11 +407,17 @@ dedupData_removemanual_endnote <- eventReactive(input$manualdedupsubmit,{
 
   dedupdat <- dedupData()$Unique %>%
     filter(!RecordID %in% removeManual) %>%
+    mutate(ISBN = gsub("\\r\\n|\\r|\\n", "", ISBN)) %>%
     mutate("Reference Type" = "Journal Article") %>%
     rename("Custom 1" = RecordID,
            "Secondary Title" = Journal,
            "ISBN/ISSN" = ISBN) %>%
-    mutate(Abstract = gsub("[\\r\\n]", "", Abstract))
+    select("Reference Type", "Author", "Year",
+           "Secondary Title", "DOI", "Title", 
+           "Pages", "Volume", "Number", "Abstract",
+           "Custom 1", "ISBN/ISSN", "Label") %>%
+    mutate(Abstract = gsub("\\r\\n|\\r|\\n", "", Abstract)) 
+    
 
   return(dedupdat)
 
@@ -503,7 +527,7 @@ output$Manual_results <- renderText({
    },
    content = function(file) {
      write.table(dedupData_Endnote(), file, sep="\t", 
-                       col.names=TRUE, row.names = F, quote=FALSE)
+                       col.names=TRUE, row.names = F, quote=FALSE, na="")
    })
 
  
@@ -515,7 +539,7 @@ output$Manual_results <- renderText({
    },
    content = function(file) {
      write.table(dedupData_removemanual_endnote(), file, sep="\t", 
-                 col.names=TRUE, row.names = F, quote=FALSE)
+                 col.names=TRUE, row.names = F, quote=FALSE, na="")
    })
  
  output$downloadSyRFData <- downloadHandler(
