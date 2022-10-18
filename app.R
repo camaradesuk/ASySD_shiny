@@ -6,7 +6,6 @@ require(stringr)
 require(dplyr)
 library(networkD3)
 library(rsconnect)
-library(XML)
 library(RCurl)
 library(shiny)
 library(ASySD)
@@ -190,7 +189,7 @@ ui <- navbarPage(
              p("The", strong("Automated Systematic Search Deduplication tool (AsySD)"), "allows users to input a dataset and remove duplicate publications."),
 
              tags$img(class = "img-responsive img-rounded center-block",
-                      src="updated_logo.png",height=175,width=120, align="center"),
+                      src="updated_logo.png",height=150,width=150, align="center"),
 
              p("This tool was developed in the CAMARADES group by", tags$a(href="https://www.researchgate.net/profile/Kaitlyn_Hair", "Kaitlyn Hair."),
              "If you have any questions about the tool, please raise an issue on the GitHub (see below) or email her at kaitlyn.hair@ed.ac.uk"),
@@ -425,8 +424,7 @@ remove duplicates.")
   output$manual_dedup_dt <- renderDT(
     auto_dedup_result()$manual %>%
       select(author1, author2, title1, title2, year1, year2, journal1, journal2, doi1, doi2, record_id1, record_id2),
-    options = list(pageLength = 10,
-                   dom = 't',
+    options = list(pageLength = 20,
                    scrollX = TRUE,
                    fixedColumns = TRUE,
                    columnDefs = list(list(visible=FALSE, targets=c(11,12)))),
