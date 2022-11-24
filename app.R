@@ -387,6 +387,7 @@ remove duplicates.")
 
     result <- dedup_citations(citations_to_dedup(),
                               keep_source = input$keepLabel,
+                              keep_label = input$keepLabel,
                               merge_citations = TRUE)
     return(result)
   })
