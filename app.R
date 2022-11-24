@@ -42,7 +42,7 @@ ui <- navbarPage(
 
 
                # Input: select an input type  ----
-               h3("Upload citations file"),
+               h4("Upload citations file ", icon("upload")),
 
                shinyWidgets::prettyRadioButtons(
                  inputId = "fileType",
@@ -64,7 +64,7 @@ ui <- navbarPage(
              # UI main panel -----
              mainPanel(
 
-               h3("Preview citations"),
+               h4("Preview citations"),
 
                textOutput("Post_upload_text"),
 
@@ -83,7 +83,7 @@ ui <- navbarPage(
 
                         sidebarPanel(
 
-                          h3("Auto-deduplication options"),
+                          h4("Auto-deduplication options ", icon("cog")),
 
                           # Text about ASySD ----
                           textOutput("ASySD_pretext"),
@@ -116,7 +116,7 @@ ui <- navbarPage(
 
                         mainPanel(
 
-                          h3("Auto-deduplication results"),
+                          h4("Auto-deduplication results"),
 
                           # Output: text displaying dedup results ----
                           htmlOutput("ASySD_results")
@@ -129,9 +129,11 @@ ui <- navbarPage(
 
                         sidebarPanel(
 
-                          h3("Manual deduplication options"),
+                          h4("Manual deduplication options ", icon("cog")),
 
                           textOutput("Manual_pretext"),
+
+                          br(),
 
                           # Button
                           shinyWidgets::actionBttn(
@@ -141,14 +143,14 @@ ui <- navbarPage(
                             color = "primary"
                           ) %>% htmltools::tagAppendAttributes(style =  "background-color: #754E9B"),
 
-                          h3("Manual deduplication results"),
+                          h4("Manual deduplication results"),
 
                           htmlOutput("Manual_results")
                         ),
 
                         mainPanel(
 
-                          h3("Manual deduplication selection"),
+                          h4("Duplicate pair selection"),
 
                           DTOutput("manual_dedup_dt")
 
@@ -156,14 +158,14 @@ ui <- navbarPage(
 
   tabPanel("Summary",
 
-           h3("Summary of deduplication steps"),
+           h4("Summary of deduplication steps"),
 
            sankeyNetworkOutput("sankey")
   ),
 
   tabPanel("Download",
 
-           h3("Download unique citations"),
+           h4("Download unique citations", icon("download")),
 
            shinyWidgets::prettyRadioButtons(
              inputId = "export_type",
@@ -197,8 +199,9 @@ ui <- navbarPage(
              "If you have any questions about the tool, please raise an issue on the GitHub (see below) or email her at kaitlyn.hair@ed.ac.uk"),
              p("The record matching function underlying this tool uses the", tags$a(href="https://rdrr.io/cran/RecordLinkage/", "RecordLinkage"), "package, created by Murat Sariyar and Andreas Borg"),
              p("The code underlying this application is available on", tags$a(href="https://github.com/kaitlynhair/ASySD", "GitHub")),
-             p("If you want to use this application for your systematic review, please cite: Hair K, Bahor Z, Macleod M, Liao J, Sena ES. The Automated Systematic Search Deduplicator (ASySD):
-             a rapid, open-source, interoperable tool to remove duplicate citations in biomedical systematic reviews. bioRxiv; 2021. DOI: 10.1101/2021.05.04.442412.")
+             p("If you want to use this application for your systematic review, please cite:                          ",
+               em("Hair K, Bahor Z, Macleod M, Liao J, Sena ES. The Automated Systematic Search Deduplicator (ASySD):
+             a rapid, open-source, interoperable tool to remove duplicate citations in biomedical systematic reviews. bioRxiv; 2021. DOI: 10.1101/2021.05.04.442412."))
 
            )))
 
@@ -303,7 +306,7 @@ server <- function(input, output, session){
     preview_10 <- RefData()[c(1:10),]
 
     preview_10 <- preview_10 %>%
-      dplyr::select(author, title, year, journal, abstract, doi, number, pages, volume, isbn, label)
+      dplyr::select(record_id, author, title, year, journal, abstract, doi, number, pages, volume, isbn, label, source)
 
     DT::datatable(preview_10,
                   options = list(dom = 't',
@@ -313,10 +316,12 @@ server <- function(input, output, session){
                                    targets = "_all",
                                    render = JS(
                                      "function(data, type, row, meta) {",
-                                     "return type === 'display' && data != null && data.length > 25 ?",
-                                     "'<span title=\"' + data + '\">' + data.substr(0, 25) + '...</span>' : data;",
+                                     "return type === 'display' && data != null && data.length > 20 ?",
+                                     "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
                                      "}")
                                  ))),
+
+                  rownames = FALSE,
                   class = "display")
   })
 
@@ -399,9 +404,11 @@ remove duplicates.")
     uniquerefs_n <- as.numeric(length(auto_dedup_result()$unique$duplicate_id))
     original_refs_n <- as.numeric(nrow(RefData()))
     removed_n <- original_refs_n - uniquerefs_n
+    manual_pairs_n <- as.numeric(length(auto_dedup_result()$manual$record_id1))
 
     paste("<font color=\"#565656\"><b>", "From a total of", original_refs_n, "citations, ASySD has removed ", "<font color=\"#FF0000\"><b>", removed_n,  "<font color=\"#565656\">", "duplicates.",
-          "There are", uniquerefs_n, "remaining.")
+          "There are", uniquerefs_n, "remaining.", manual_pairs_n, "possible duplicate pairs have been flagged for manual deduplication. Go to the
+          manual deduplication tab to check these suggested duplicates.")
 
   })
 
@@ -451,7 +458,8 @@ remove duplicates.")
                    scrollX = TRUE,
                    fixedColumns = TRUE,
                    columnDefs = list(list(visible=FALSE, targets=c(11,12)))),
-    selection=list(mode="multiple"))
+    selection=list(mode="multiple"),
+    rownames=FALSE)
 
 
   # Output: sankey diagram ---
