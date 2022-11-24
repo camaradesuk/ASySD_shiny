@@ -16,7 +16,6 @@ library(shinyWidgets)
 library(bslib)
 library(RecordLinkage) #contains compare.dedup function
 options(shiny.maxRequestSize=1000*1024^2, timeout = 40000000)
-
 # UI ----
 ui <- navbarPage(
 
@@ -100,7 +99,10 @@ ui <- navbarPage(
                           uiOutput("Keep_citation_picker"),
 
                           # Conditional user option: Select references to keep in dataset ----
-                          uiOutput("keepIn"),
+                          uiOutput("keepLabel"),
+
+                          # Conditional user option: Select references to keep in dataset ----
+                          uiOutput("keepSource"),
 
 
                           # User input: auto deduplicate button -----
@@ -161,7 +163,7 @@ ui <- navbarPage(
 
   tabPanel("Download",
 
-           h3("Download citations"),
+           h3("Download unique citations"),
 
            shinyWidgets::prettyRadioButtons(
              inputId = "export_type",
@@ -248,7 +250,7 @@ server <- function(input, output, session){
       shinyWidgets::prettyRadioButtons(
         inputId = "Keep_citation_picker",
         label = "If duplicates exist, which citation should be preferentially retained?",
-        choices = c("Citation with abstract", "Citation with a specific label"),
+        choices = c("Citation with abstract", "Citation with a specific label", "Citation from a specific source"),
         selected = c("Citation with abstract"),
         status="primary")
     })
@@ -256,7 +258,7 @@ server <- function(input, output, session){
   })
 
   # Get choices for keep label
-  output$keepIn <- renderUI({
+  output$keepLabel <- renderUI({
 
     shiny::validate(
       shiny::need(input$Keep_citation_picker != "", "")
@@ -266,10 +268,30 @@ server <- function(input, output, session){
     if (input$Keep_citation_picker == "Citation with a specific label") {
 
 
-      selectInput(inputId = "keepIn",
+      selectInput(inputId = "keepLabel",
                   label = "Specify labelled references to keep in the dataset",
                   choices = unique(RefData()$label),
                   selected = RefData()$label[1],
+                  multiple = FALSE)
+    }
+  })
+
+
+  # Get choices for keep label
+  output$keepSource <- renderUI({
+
+    shiny::validate(
+      shiny::need(input$Keep_citation_picker != "", "")
+    )
+
+
+    if (input$Keep_citation_picker == "Citation from a specific source") {
+
+
+      selectInput(inputId = "keepSource",
+                  label = "Specify source to keep in the dataset",
+                  choices = unique(RefData()$source),
+                  selected = RefData()$source[1],
                   multiple = FALSE)
     }
   })
@@ -364,7 +386,7 @@ remove duplicates.")
   auto_dedup_result <- eventReactive(input$dedupbutton,{
 
     result <- dedup_citations(citations_to_dedup(),
-                              keep_source = input$keepIn,
+                              keep_source = input$keepLabel,
                               merge_citations = TRUE)
     return(result)
   })
@@ -480,6 +502,7 @@ remove duplicates.")
     content = function(file) {
       if(input$export_type == ".txt"){
         ASySD::write_citations(manual_dedup_result(), type = "endnote-tab", file)
+
       }
 
       else if(input$export_type==".csv"){
