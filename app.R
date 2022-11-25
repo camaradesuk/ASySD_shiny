@@ -19,6 +19,8 @@ options(shiny.maxRequestSize=1000*1024^2, timeout = 40000000)
 # UI ----
 ui <- navbarPage(
 
+  tags$head(includeHTML(("google-analytics.html"))),
+
   title="ASySD",
 
   theme = bs_theme(bg = "rgb(251, 251, 251)",
@@ -391,7 +393,7 @@ remove duplicates.")
   auto_dedup_result <- eventReactive(input$dedupbutton,{
 
     result <- dedup_citations(citations_to_dedup(),
-                              keep_source = input$keepLabel,
+                              keep_source = input$keepSource,
                               keep_label = input$keepLabel,
                               merge_citations = TRUE)
     return(result)
@@ -458,8 +460,7 @@ remove duplicates.")
                    scrollX = TRUE,
                    fixedColumns = TRUE,
                    columnDefs = list(list(visible=FALSE, targets=c(11,12)))),
-    selection=list(mode="multiple"),
-    rownames=FALSE)
+    selection=list(mode="multiple"))
 
 
   # Output: sankey diagram ---
