@@ -14,6 +14,7 @@ library(shinycssloaders)
 library(htmlwidgets)
 library(shinyWidgets)
 library(bslib)
+source("dev.R")
 library(RecordLinkage) #contains compare.dedup function
 options(shiny.maxRequestSize=1000*1024^2, timeout = 40000000)
 # UI ----
@@ -71,7 +72,7 @@ ui <- navbarPage(
                textOutput("Post_upload_text"),
 
                # Output: datatable of citations uploaded ----
-               DT::dataTableOutput("citation_table") %>% withSpinner(color="#96c296"))
+               DT::dataTableOutput("citation_table") %>% withSpinner(color="#754E9B", type=7))
            )),
 
 
@@ -121,7 +122,7 @@ ui <- navbarPage(
                           h4("Auto-deduplication results"),
 
                           # Output: text displaying dedup results ----
-                          htmlOutput("ASySD_results")
+                          htmlOutput("ASySD_results") %>% withSpinner(color="#754E9B", type=7)
                         )
                       )),
 
@@ -147,7 +148,7 @@ ui <- navbarPage(
 
                           h4("Manual deduplication results"),
 
-                          htmlOutput("Manual_results") %>% withSpinner(color="#96c296")
+                          htmlOutput("Manual_results") %>% withSpinner(color="#754E9B", type=7)
                         ),
 
                         mainPanel(
@@ -162,7 +163,7 @@ ui <- navbarPage(
 
            h4("Summary of deduplication steps"),
 
-           sankeyNetworkOutput("sankey")
+           sankeyNetworkOutput("sankey") %>% withSpinner(color="#754E9B", type=7)
   ),
 
   tabPanel("Download",
@@ -484,7 +485,7 @@ remove duplicates.")
                             paste0("Auto-dedup removed (", n_search - n_unique_auto, ")"),
                             paste0("Unique citations (", n_unique_manual, ")"),
                             paste0("Manually removed (", n_unique_auto - n_unique_manual, ")")),
-                        value = c(n_search, n_unique_auto,  n_search - n_unique_auto, n_unique_auto - n_unique_manual))
+                        value = c(n_search, n_search - n_unique_auto, n_unique_manual, n_unique_auto - n_unique_manual))
 
     # From these flows we need to create a node data frame: it lists every entities involved in the flow
     nodes <- data.frame(
