@@ -147,7 +147,7 @@ ui <- navbarPage(
 
                           h4("Manual deduplication results"),
 
-                          htmlOutput("Manual_results")
+                          htmlOutput("Manual_results") %>% withSpinner(color="#96c296")
                         ),
 
                         mainPanel(
@@ -173,7 +173,7 @@ ui <- navbarPage(
              inputId = "export_type",
              label = "Chose an export type",
              choiceNames = c("Endnote tab delimited", "RIS", "SyRF CSV", "BibTex"),
-             choiceValues = c(".txt", ".ris", ".csv", ".bib"),
+             choiceValues = c("txt", "ris", "csv", "bib"),
              status="success"),
 
            downloadBttn(
@@ -224,6 +224,7 @@ server <- function(input, output, session){
       if(input$fileType=="Endnote XML"){
 
         citations <- ASySD::load_search(input$uploadfile$datapath, method="endnote")
+
       }  else if(input$fileType == "CSV"){
 
         citations <- ASySD::load_search(input$uploadfile$datapath, method="csv")
@@ -428,6 +429,7 @@ remove duplicates.")
                                         additional_pairs = duplicates)
   })
 
+
   # Action: ASySD manual dedup pre text ----
   output$Manual_pretext <- renderText({
 
@@ -468,7 +470,9 @@ remove duplicates.")
 
     n_search <- original_refs_n <- as.numeric(nrow(RefData()))
     n_unique_auto <- as.numeric(length(auto_dedup_result()$unique$duplicate_id))
-    n_unique_manual <- as.numeric(length(manual_dedup_result()$duplicate_id))
+    try(n_unique_manual <- as.numeric(length(manual_dedup_result()$duplicate_id)), silent=TRUE)
+
+    if(exists("n_unique_manual")){
 
     links <- data.frame(source =
                           c(paste0("Original citations (", n_search, ")"),
@@ -500,33 +504,67 @@ remove duplicates.")
                        units = "Citations")
     p
 
+    }
+
+    else{
+
+
+      links <- data.frame(source =
+                            c(paste0("Original citations (", n_search, ")"),
+                              paste0("Original citations (", n_search, ")")),
+                            target =
+                            c(paste0("Unique citations (", n_unique_auto, ")"),
+                              paste0("Auto-dedup removed (", n_search - n_unique_auto, ")")),
+                          value = c(n_unique_auto,  n_search - n_unique_auto))
+
+      # From these flows we need to create a node data frame: it lists every entities involved in the flow
+      nodes <- data.frame(
+        name=c(as.character(links$source),
+               as.character(links$target)) %>% unique()
+      )
+
+      # With networkD3, connection must be provided using id, not using real name like in the links dataframe.. So we need to reformat it.
+      links$IDsource <- match(links$source, nodes$name)-1
+      links$IDtarget <- match(links$target, nodes$name)-1
+
+      # Make the Network
+      p <- sankeyNetwork(Links = links, Nodes = nodes,
+                         Source = "IDsource", Target = "IDtarget",
+                         Value = "value", NodeID = "name",
+                         sinksRight=FALSE, nodeWidth =30, height = 100, width = 800, fontSize = 14,
+                         units = "Citations")
+      p
+
+    }
+  })
+
+  final_results <- reactive({
+
+    if(exists("manual_dedup_result()")){
+
+      final <- manual_dedup_result()
+
+    }  else {
+
+    final <- auto_dedup_result()$unique
+
+    }
+
+    return(final)
   })
 
   # output: download unique citations - endnote
   output$download<- downloadHandler(
 
-    filename = function() {
-      paste0("unique_citations", input$export_type)
-    },
+        filename = function() {
+          paste0("unique_citations.", input$export_type)
+        },
 
-    content = function(file) {
-      if(input$export_type == ".txt"){
-        ASySD::write_citations(manual_dedup_result(), type = "endnote-tab", file)
+        content = function(file) {
 
-      }
-
-      else if(input$export_type==".csv"){
-        ASySD::write_citations(manual_dedup_result(), type = "syrf-csv", file)
-      }
-
-      else if(input$export_type==".ris"){
-        ASySD::write_citations(manual_dedup_result(), type = "ris", file)
-
-      }
-      else if(input$export_type==".bib"){
-        ASySD::write_citations(manual_dedup_result(), type = "bibtex", file)
-      }
-    })
+        ASySD::write_citations(final_results(), type = input$export_type, file)
+        }
+    )
 }
 # Run the application
 shinyApp(ui = ui, server = server)
