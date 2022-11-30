@@ -464,7 +464,7 @@ remove duplicates.")
                                                    "}")
                                                ),
                                                list(
-                                                 targets = c(1,2,13,14),
+                                                 targets = c(0,1,12,13),
                                                  render = JS(
                                                    "function(data, type, row, meta) {",
                                                    "return type === 'display' && data != null && data.length > 20 ?",
