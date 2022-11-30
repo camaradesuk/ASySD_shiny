@@ -550,15 +550,9 @@ remove duplicates.")
 
   final_results <- reactive({
 
-    if(exists("manual_dedup_result()")){
-
-      final <- manual_dedup_result()
-
-    }  else {
 
     final <- auto_dedup_result()$unique
-
-    }
+    try(final <- manual_dedup_result(), silent = TRUE)
 
     return(final)
   })
