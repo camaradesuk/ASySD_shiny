@@ -14,7 +14,6 @@ library(shinycssloaders)
 library(htmlwidgets)
 library(shinyWidgets)
 library(bslib)
-source("dev.R")
 library(RecordLinkage) #contains compare.dedup function
 options(shiny.maxRequestSize=1000*1024^2, timeout = 40000000)
 # UI ----
@@ -128,11 +127,8 @@ ui <- navbarPage(
 
              tabPanel("Manual deduplication",
 
-                      sidebarLayout(
 
-                        sidebarPanel(
-
-                          h4("Manual deduplication options ", icon("cog")),
+                          h4("Manual deduplication ", icon("check-square")),
 
                           textOutput("Manual_pretext"),
 
@@ -146,18 +142,14 @@ ui <- navbarPage(
                             color = "primary"
                           ) %>% htmltools::tagAppendAttributes(style =  "background-color: #754E9B"),
 
-                          h4("Manual deduplication results"),
+                          htmlOutput("Manual_results") %>% withSpinner(color="#754E9B", type=7),
 
-                          htmlOutput("Manual_results") %>% withSpinner(color="#754E9B", type=7)
-                        ),
-
-                        mainPanel(
 
                           h4("Duplicate pair selection"),
 
                           DTOutput("manual_dedup_dt")
 
-                        ))))),
+                        ))),
 
   tabPanel("Summary",
 
@@ -457,13 +449,30 @@ remove duplicates.")
 
   # Output: manual dedup datatable -----
   output$manual_dedup_dt <- renderDT(
-    auto_dedup_result()$manual %>%
-      select(author1, author2, title1, title2, year1, year2, journal1, journal2, doi1, doi2, record_id1, record_id2),
-    options = list(pageLength = 20,
-                   scrollX = TRUE,
-                   fixedColumns = TRUE,
-                   columnDefs = list(list(visible=FALSE, targets=c(11,12)))),
-    selection=list(mode="multiple"))
+    datatable(auto_dedup_result()$manual[,c(1,2,4,5,10,11,13,14,16,17,19,20,22,23,28,29,31,32)],
+              rownames = FALSE,
+              options = list(pageLength = 20,
+                             fixedColumns = TRUE,
+                             scrollX = TRUE,
+                             columnDefs = list(list(visible=FALSE, targets=c(16,17)),
+                                               list(
+                                                 targets = c(2,3),
+                                                 render = JS(
+                                                   "function(data, type, row, meta) {",
+                                                   "return type === 'display' && data != null && data.length > 30 ?",
+                                                   "'<span title=\"' + data + '\">' + data.substr(0, 30) + '...</span>' : data;",
+                                                   "}")
+                                               ),
+                                               list(
+                                                 targets = c(1,2,13,14),
+                                                 render = JS(
+                                                   "function(data, type, row, meta) {",
+                                                   "return type === 'display' && data != null && data.length > 20 ?",
+                                                   "'<span title=\"' + data + '\">' + data.substr(0, 20) + '...</span>' : data;",
+                                                   "}")
+                                               ))))
+  )
+
 
 
   # Output: sankey diagram ---
